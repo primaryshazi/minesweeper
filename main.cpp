@@ -1218,12 +1218,12 @@ int main()
 
             for (int r = 0; r < row; r++)
             {
-                std::cout << "{";
+                printf("{");
                 for (int c = 0; c < column; c++)
                 {
-                    std::cout << board[r][c] << ", ";
+                    printf("%2d, ", board[r][c]);
                 }
-                std::cout << "}," << std::endl;
+                printf("},\n");
             }
         }
     }
