@@ -13,6 +13,10 @@
 
 #include <iostream>
 
+#include "SZCommon.h"
+
+#define SHOW_DEBUG 1
+
 namespace Mines
 {
     int64_t g_seed = -1;
@@ -37,6 +41,21 @@ namespace Mines
         }
 
         return cur_seed;
+    }
+
+    void print_board(const std::vector<std::vector<int>> &board)
+    {
+        int board_row = board.size();
+        int board_column = board_row > 0 ? board[0].size() : 0;
+        for (int r = 0; r < board_row; r++)
+        {
+            printf("{");
+            for (int c = 0; c < board_column; c++)
+            {
+                printf("%2d, ", board[r][c]);
+            }
+            printf("},\n");
+        }
     }
 
     bool unsolvable_structure(const std::vector<std::vector<int>> &BoardCheck)
@@ -1026,6 +1045,7 @@ namespace Mines
         // 10是未打开，11是标雷
         // 局面大小必须超过6*6
         refresh_board(board, board_of_game, {{touchRow, touchCol}});
+
         if (isVictory(board_of_game, board))
         {
             return true; // 暂且认为点一下就扫开也是可以的
@@ -1169,13 +1189,18 @@ namespace Mines
     }
 } // namespace Mines
 
+namespace MinesSolver
+{
+
+} // namespace MinesSolver
+
 int main()
 {
     Mines::g_seed = 123456789;
 
-    int row = 32;
-    int column = 32;
-    int mine = 235;
+    int row = 9;
+    int column = 9;
+    int mine = 10;
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
@@ -1205,30 +1230,11 @@ int main()
 
         if (loop == 1)
         {
-            for (auto &ls : board)
-            {
-                for (auto &v : ls)
-                {
-                    if (v == -1)
-                    {
-                        v = 9;
-                    }
-                }
-            }
-
-            for (int r = 0; r < row; r++)
-            {
-                printf("{");
-                for (int c = 0; c < column; c++)
-                {
-                    printf("%2d, ", board[r][c]);
-                }
-                printf("},\n");
-            }
+            Mines::print_board(board);
         }
     }
     int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) / 1000 << std::endl;
+    std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
 
     return 0;
 }
