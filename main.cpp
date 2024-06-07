@@ -1091,24 +1091,6 @@ namespace Mines
                 if (std::get<0>(solve_minus_ans).empty() && std::get<1>(solve_minus_ans).empty())
                 {
                     return false;
-                    // 递归法难以推理，暂时不考虑
-                    // auto solve_enumerate_ans = solve_enumerate(As, xs, bs);
-                    // if (std::get<0>(solve_enumerate_ans).empty() && std::get<1>(solve_enumerate_ans).empty())
-                    // {
-                    //     return false;
-                    // }
-                    // else
-                    // {
-                    //     not_mine = std::get<0>(solve_enumerate_ans);
-                    // }
-
-                    // if (!std::get<1>(solve_enumerate_ans).empty())
-                    // {
-                    //     for (const auto &op : std::get<1>(solve_enumerate_ans))
-                    //     {
-                    //         board_of_game[op.first][op.second] = 11;
-                    //     }
-                    // }
                 }
                 else
                 {
