@@ -10,13 +10,18 @@
 #include <chrono>
 #include <memory>
 #include <numeric>
+#include <stack>
+#include <list>
 
 #include <iostream>
 
 #include "SZCommon.h"
 
-#define SHOW_DEBUG 1
+#define SHOW_DEBUG 0
 
+/**
+ * Mines中所有坐标均为(row, column)
+ */
 namespace Mines
 {
     int64_t g_seed = -1;
@@ -212,21 +217,19 @@ namespace Mines
         }
     }
 
-    bool isVictory(const std::vector<std::vector<int>> &board_of_game, const std::vector<std::vector<int>> &Board)
+    bool isVictory(const std::vector<std::vector<int>> &board_of_game, const std::vector<std::pair<int, int>> &total_mines)
     {
-        int row = board_of_game.size();
-        int col = board_of_game[0].size();
-        for (int i = 0; i < row; ++i)
+        bool isVictory = true;
+        for (const auto &mine : total_mines)
         {
-            for (int j = 0; j < col; ++j)
+            if (board_of_game[mine.first][mine.second] != 11)
             {
-                if (board_of_game[i][j] == 10 && Board[i][j] != -1)
-                {
-                    return false;
-                }
+                isVictory = false;
+                break;
             }
         }
-        return true;
+
+        return isVictory;
     }
 
     std::tuple<int, int>
@@ -1032,6 +1035,23 @@ namespace Mines
         return std::make_pair(not_mine, is_mine);
     }
 
+    void get_total_mines(const std::vector<std::vector<int>> &board, std::vector<std::pair<int, int>> &total_mines)
+    {
+        int row = board.size();
+        int column = board[0].size();
+
+        for (int i = 0; i < row; i++)
+        {
+            for (int j = 0; j < column; j++)
+            {
+                if (board[i][j] == -1)
+                {
+                    total_mines.emplace_back(std::make_pair(i, j));
+                }
+            }
+        }
+    }
+
     bool is_solvable(const std::vector<std::vector<int>> &board, int touchRow, int touchCol)
     {
         if (unsolvable_structure(board))
@@ -1041,12 +1061,16 @@ namespace Mines
         }
         int row = board.size();
         int column = board[0].size();
+
+        std::vector<std::pair<int, int>> total_mines;
+        get_total_mines(board, total_mines);
+
         std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
-        // 10是未打开，11是标雷
+        // 10是未打开，11是标雷，12是已安全块
         // 局面大小必须超过6*6
         refresh_board(board, board_of_game, {{touchRow, touchCol}});
 
-        if (isVictory(board_of_game, board))
+        if (isVictory(board_of_game, total_mines))
         {
             return true; // 暂且认为点一下就扫开也是可以的
         }
@@ -1066,23 +1090,25 @@ namespace Mines
                 auto solve_minus_ans = solve_minus(As, xs, bs, board_of_game);
                 if (std::get<0>(solve_minus_ans).empty() && std::get<1>(solve_minus_ans).empty())
                 {
-                    auto solve_enumerate_ans = solve_enumerate(As, xs, bs);
-                    if (std::get<0>(solve_enumerate_ans).empty() && std::get<1>(solve_enumerate_ans).empty())
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        not_mine = std::get<0>(solve_enumerate_ans);
-                    }
+                    return false;
+                    // 递归法难以推理，暂时不考虑
+                    // auto solve_enumerate_ans = solve_enumerate(As, xs, bs);
+                    // if (std::get<0>(solve_enumerate_ans).empty() && std::get<1>(solve_enumerate_ans).empty())
+                    // {
+                    //     return false;
+                    // }
+                    // else
+                    // {
+                    //     not_mine = std::get<0>(solve_enumerate_ans);
+                    // }
 
-                    if (!std::get<1>(solve_enumerate_ans).empty())
-                    {
-                        for (const auto &op : std::get<1>(solve_enumerate_ans))
-                        {
-                            board_of_game[op.first][op.second] = 11;
-                        }
-                    }
+                    // if (!std::get<1>(solve_enumerate_ans).empty())
+                    // {
+                    //     for (const auto &op : std::get<1>(solve_enumerate_ans))
+                    //     {
+                    //         board_of_game[op.first][op.second] = 11;
+                    //     }
+                    // }
                 }
                 else
                 {
@@ -1095,7 +1121,7 @@ namespace Mines
             }
 
             refresh_board(board, board_of_game, not_mine);
-            if (isVictory(board_of_game, board))
+            if (isVictory(board_of_game, total_mines))
             {
                 return true;
             }
@@ -1191,50 +1217,711 @@ namespace Mines
 
 namespace MinesSolver
 {
+    struct Point
+    {
+        int col{0};
+        int row{0};
 
+        Point() {}
+        Point(int _c, int _r) : col(_c), row(_r) {}
+        Point(const Point &p) : col(p.col), row(p.row) {}
+        Point &operator=(const Point &p)
+        {
+            col = p.col;
+            row = p.row;
+            return *this;
+        }
+
+        friend bool operator==(const Point &a, const Point &b) { return a.col == b.col && a.row == b.row; }
+        friend bool operator!=(const Point &a, const Point &b) { return a.col != b.col || a.row != b.row; }
+        friend bool operator<(const Point &a, const Point &b) { return a.row < b.row || (a.row == b.row && a.col < b.col); }
+        friend bool operator>(const Point &a, const Point &b) { return a.row > b.row || (a.row == b.row && a.col > b.col); }
+        friend bool operator<=(const Point &a, const Point &b) { return !operator>(a, b); }
+        friend bool operator>=(const Point &a, const Point &b) { return !operator<(a, b); }
+
+        Point operator+(const Point &coord) const { return Point(col + coord.col, row + coord.row); }
+        Point operator-(const Point &coord) const { return Point(col - coord.col, row - coord.row); }
+        Point operator*(const int &scale) const { return Point(col * scale, row * scale); }
+        Point operator/(const int &scale) const { return scale == 0 ? Point(0, 0) : Point(col / scale, row / scale); }
+
+        friend std::ostream &operator<<(std::ostream &os, const Point &p)
+        {
+            os << "(" << p.col << ", " << p.row << ")";
+            return os;
+        }
+    };
+
+    struct NumBlock
+    {
+        Point num_block;                   // 中心数字块
+        std::vector<Point> mines_blocks;   // 周围的雷块
+        std::vector<Point> unknown_blocks; // 周围的未知块
+
+        friend std::ostream &operator<<(std::ostream &os, const NumBlock &n)
+        {
+            os << "{ " << n.num_block << "; " << SZ_Common::toString(n.mines_blocks) << "; " << SZ_Common::toString(n.unknown_blocks) << " }";
+            return os;
+        }
+    };
+
+    // 单点分析结果
+    struct SolveDirect
+    {
+        Point num_block; // 中心数字块
+
+        std::vector<Point> init_mines_blocks;   // 初始雷块
+        std::vector<Point> init_safe_blocks;    // 初始安全块
+        std::vector<Point> init_unknown_blocks; // 初始未知块
+
+        std::vector<Point> res_mines_blocks; // 求解周围地雷块
+        std::vector<Point> res_safe_blocks;  // 求解周围安全块
+    };
+
+    /**
+     * @brief 检查是否胜利
+     *
+     * @param board_of_game
+     * @param total_mines   所有炸弹的位置
+     * @return true
+     * @return false
+     */
+    bool isVictory(const std::vector<std::vector<int>> &board_of_game, const std::vector<Point> &total_mines)
+    {
+        bool isVictory = true;
+        for (const auto &mine : total_mines)
+        {
+            if (board_of_game[mine.row][mine.col] != 11)
+            {
+                isVictory = false;
+                break;
+            }
+        }
+
+        return isVictory;
+    }
+
+    /**
+     * @brief 校验地图
+     *
+     * @param board
+     * @param board_of_game
+     * @param total_mines
+     */
+    void check_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<Point> &total_mines)
+    {
+        const int board_row = board.size();
+        const int board_col = board[0].size();
+
+        total_mines.clear();
+
+        for (int r = 0; r < board_row; r++)
+        {
+            for (int c = 0; c < board_col; c++)
+            {
+                // 如果地图标雷，但是标错了，需要还原成未知状态
+                if (board_of_game[r][c] == 11 && board[r][c] != -1)
+                {
+                    board_of_game[r][c] = 10;
+                }
+
+                if (board[r][c] == -1)
+                {
+                    total_mines.push_back(Point(c, r));
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief 点开地图
+     *
+     * @param board
+     * @param board_of_game
+     * @param open_pos
+     * @return bool 是否踩雷
+     */
+    bool open_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<Point> &open_pos)
+    {
+        const int board_row = board.size();
+        const int board_col = board[0].size();
+
+        while (!open_pos.empty())
+        {
+            auto top = open_pos.back();
+            open_pos.pop_back();
+
+            if (board[top.row][top.col] > 0)
+            {
+                board_of_game[top.row][top.col] = board[top.row][top.col];
+            }
+            else if (board[top.row][top.col] == 0)
+            {
+                board_of_game[top.row][top.col] = 0;
+                for (int r = std::max(1, top.row) - 1; r < std::min(board_row, top.row + 2); r++)
+                {
+                    for (int c = std::max(1, top.col) - 1; c < std::min(board_col, top.col + 2); c++)
+                    {
+                        if ((top.row != r || top.col != c) && (board_of_game[r][c] == 10 || board_of_game[r][c] == 12))
+                        {
+                            open_pos.push_back(Point(c, r));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @brief 单点求解
+     *
+     * 在九宫中，共有X个雷，已知M个雷，N个未知块。
+     *
+     *  M   b
+     *  a X M
+     *
+     * 如果 M + N == X，则N均为雷。故a b为雷
+     * 如果 M == x，则N均不为雷。故a b不为雷
+     *
+     * @param board_of_game
+     * @param num_blocks
+     * @param res_mines_blocks
+     * @param res_safe_blocks
+     */
+    void solve_by_direct(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    {
+        res_mines_blocks.clear();
+        res_safe_blocks.clear();
+
+        for (auto it = num_blocks.begin(); it != num_blocks.end();)
+        {
+            int row = it->num_block.row;
+            int col = it->num_block.col;
+
+            // 检查是否可以进行分析
+            for (auto it_unknown = it->unknown_blocks.begin(); it_unknown != it->unknown_blocks.end();)
+            {
+                int unknown_value = board_of_game[it_unknown->row][it_unknown->col];
+                if (unknown_value == 11)
+                {
+                    it->mines_blocks.push_back(*it_unknown);
+                    it_unknown = it->unknown_blocks.erase(it_unknown);
+                    continue;
+                }
+                else if (unknown_value != 10)
+                {
+                    it_unknown = it->unknown_blocks.erase(it_unknown);
+                    continue;
+                }
+                ++it_unknown;
+            }
+
+            // 没有可以分析的的安全块
+            if (it->unknown_blocks.empty())
+            {
+                it = num_blocks.erase(it);
+                continue;
+            }
+
+            int total_mines = board_of_game[row][col];
+            int mines_num = it->mines_blocks.size();
+            int unknown_num = it->unknown_blocks.size();
+
+            if (total_mines == mines_num)
+            {
+                for (auto it_unknown = it->unknown_blocks.begin(); it_unknown != it->unknown_blocks.end();)
+                {
+                    board_of_game[it_unknown->row][it_unknown->col] = 12;
+
+                    res_safe_blocks.push_back(*it_unknown);
+                    it_unknown = it->unknown_blocks.erase(it_unknown);
+                }
+            }
+            else if (total_mines == unknown_num + mines_num)
+            {
+                for (auto it_unknown = it->unknown_blocks.begin(); it_unknown != it->unknown_blocks.end();)
+                {
+                    board_of_game[it_unknown->row][it_unknown->col] = 11;
+                    res_mines_blocks.push_back(*it_unknown);
+                    it_unknown = it->unknown_blocks.erase(it_unknown);
+                }
+            }
+
+            if (it->unknown_blocks.empty())
+            {
+                it = num_blocks.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+    }
+
+    /**
+     * @brief 双点求解
+     *
+     * 在两个九宫中，分别有X和Y个雷，分别已知Mx个雷和Nx个未知块，My个雷和Ny个未知块
+     *
+     *  a b c M
+     *  M X Y d
+     *
+     * 如果 X - Mx - (Y - My) = Nx - Intersect(Nx, Ny)，则Nx - Intersect(Nx, Ny)为雷，Ny - Intersect(Nx, Ny)不为雷。故a为雷，d不为雷
+     *
+     * @param board_of_game
+     * @param num_blocks
+     * @param res_mines_blocks
+     * @param res_safe_blocks
+     */
+    void solve_by_minus(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    {
+        res_mines_blocks.clear();
+        res_safe_blocks.clear();
+
+        for (int idx_a = 0; idx_a < static_cast<int>(num_blocks.size());)
+        {
+            int row_a = num_blocks[idx_a].num_block.row;
+            int col_a = num_blocks[idx_a].num_block.col;
+
+            // 检查是否可以进行分析
+            for (auto it_unknown = num_blocks[idx_a].unknown_blocks.begin(); it_unknown != num_blocks[idx_a].unknown_blocks.end();)
+            {
+                int unknown_value = board_of_game[it_unknown->row][it_unknown->col];
+                if (unknown_value == 11)
+                {
+                    num_blocks[idx_a].mines_blocks.push_back(*it_unknown);
+                    it_unknown = num_blocks[idx_a].unknown_blocks.erase(it_unknown);
+                    continue;
+                }
+                else if (unknown_value != 10)
+                {
+                    it_unknown = num_blocks[idx_a].unknown_blocks.erase(it_unknown);
+                    continue;
+                }
+                ++it_unknown;
+            }
+
+            // 没有可以分析的的安全块
+            if (num_blocks[idx_a].unknown_blocks.empty())
+            {
+                num_blocks.erase(num_blocks.begin() + idx_a);
+                continue;
+            }
+
+            bool is_delete_a = false; // 是否删除a
+
+            for (int idx_b = idx_a + 1; idx_b < static_cast<int>(num_blocks.size());)
+            {
+                int col_b = num_blocks[idx_b].num_block.col;
+                int row_b = num_blocks[idx_b].num_block.row;
+
+                // b于a相交在2格之内
+                if (col_b < col_a - 2 || col_b > col_a + 2 || row_b < row_a - 2 || row_b > row_a + 2)
+                {
+                    idx_b++;
+                    continue;
+                }
+
+                // 检查是否可以进行分析
+                for (auto it_safe = num_blocks[idx_b].unknown_blocks.begin(); it_safe != num_blocks[idx_b].unknown_blocks.end();)
+                {
+                    int safe_value = board_of_game[it_safe->row][it_safe->col];
+                    if (safe_value == 11)
+                    {
+                        num_blocks[idx_b].mines_blocks.push_back(*it_safe);
+                        it_safe = num_blocks[idx_b].unknown_blocks.erase(it_safe);
+                        continue;
+                    }
+                    else if (safe_value != 10)
+                    {
+                        it_safe = num_blocks[idx_b].unknown_blocks.erase(it_safe);
+                        continue;
+                    }
+                    ++it_safe;
+                }
+
+                // 没有可以分析的的未知块
+                if (num_blocks[idx_b].unknown_blocks.empty())
+                {
+                    num_blocks.erase(num_blocks.begin() + idx_b);
+                    continue;
+                }
+
+                std::vector<Point> intersect_blocks; // 相交部分
+                std::set_intersection(num_blocks[idx_a].unknown_blocks.begin(), num_blocks[idx_a].unknown_blocks.end(), num_blocks[idx_b].unknown_blocks.begin(), num_blocks[idx_b].unknown_blocks.end(), std::back_inserter(intersect_blocks));
+
+                // 不相交
+                if (intersect_blocks.empty())
+                {
+                    idx_b++;
+                    continue;
+                }
+
+                int total_mines_a = board_of_game[row_a][col_a];             // a的总雷
+                int mines_num_a = num_blocks[idx_a].mines_blocks.size();     // a的已知雷
+                int unknown_num_a = num_blocks[idx_a].unknown_blocks.size(); // a的未知块
+
+                int total_mines_b = board_of_game[row_b][col_b];            // b的总雷
+                int mines_num_b = num_blocks[idx_b].mines_blocks.size();    // b的已知雷
+                int unknow_num_b = num_blocks[idx_b].unknown_blocks.size(); // b的未知块
+
+                int intersect_num = intersect_blocks.size(); // 相交的未知块
+
+                if (SHOW_DEBUG > 0)
+                {
+                    printf("block_a: %s\n", SZ_Common::toString(num_blocks[idx_a]).c_str());
+                    printf("block_b: %s\n", SZ_Common::toString(num_blocks[idx_b]).c_str());
+                    printf("intersect_blocks: %s\n", SZ_Common::toString(intersect_blocks).c_str());
+                    printf("\n");
+                }
+
+                do
+                {
+                    if (total_mines_a - mines_num_a >= total_mines_b - mines_num_b)
+                    {
+                        int left = total_mines_a - mines_num_a - (total_mines_b - mines_num_b);
+                        int right = unknown_num_a - intersect_num;
+
+                        if (left == right)
+                        {
+                            // a 中不在公共区域的均为雷
+                            for (auto it_unknown = num_blocks[idx_a].unknown_blocks.begin(); it_unknown != num_blocks[idx_a].unknown_blocks.end();)
+                            {
+                                if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
+                                {
+                                    board_of_game[it_unknown->row][it_unknown->col] = 11;
+                                    res_mines_blocks.push_back(*it_unknown);
+                                    num_blocks[idx_a].mines_blocks.push_back(*it_unknown);
+                                    it_unknown = num_blocks[idx_a].unknown_blocks.erase(it_unknown);
+                                }
+                                else
+                                {
+                                    ++it_unknown;
+                                }
+                            }
+
+                            // b 中不在公共区域的均不为雷
+                            for (auto it_unknown = num_blocks[idx_b].unknown_blocks.begin(); it_unknown != num_blocks[idx_b].unknown_blocks.end();)
+                            {
+                                if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
+                                {
+                                    board_of_game[it_unknown->row][it_unknown->col] = 12;
+                                    res_safe_blocks.push_back(*it_unknown);
+                                    it_unknown = num_blocks[idx_b].unknown_blocks.erase(it_unknown);
+                                }
+                                else
+                                {
+                                    ++it_unknown;
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if (total_mines_b - mines_num_b >= total_mines_a - mines_num_a)
+                    {
+                        int left = total_mines_b - mines_num_b - (total_mines_a - mines_num_a);
+                        int right = unknow_num_b - intersect_num;
+
+                        if (left == right)
+                        {
+                            // b 中不在公共区域的均为雷
+                            for (auto it_unknown = num_blocks[idx_b].unknown_blocks.begin(); it_unknown != num_blocks[idx_b].unknown_blocks.end();)
+                            {
+                                if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
+                                {
+                                    board_of_game[it_unknown->row][it_unknown->col] = 11;
+                                    res_mines_blocks.push_back(*it_unknown);
+                                    num_blocks[idx_b].mines_blocks.push_back(*it_unknown);
+                                    it_unknown = num_blocks[idx_b].unknown_blocks.erase(it_unknown);
+                                }
+                                else
+                                {
+                                    ++it_unknown;
+                                }
+                            }
+
+                            // a 中不在公共区域的均不为雷
+                            for (auto it_unknown = num_blocks[idx_a].unknown_blocks.begin(); it_unknown != num_blocks[idx_a].unknown_blocks.end();)
+                            {
+                                if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
+                                {
+                                    board_of_game[it_unknown->row][it_unknown->col] = 12;
+                                    res_safe_blocks.push_back(*it_unknown);
+                                    it_unknown = num_blocks[idx_a].unknown_blocks.erase(it_unknown);
+                                }
+                                else
+                                {
+                                    ++it_unknown;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } while (false);
+
+                if (num_blocks[idx_b].unknown_blocks.empty())
+                {
+                    num_blocks.erase(num_blocks.begin() + idx_b);
+                }
+                else
+                {
+                    idx_b++;
+                }
+
+                if (num_blocks[idx_a].unknown_blocks.empty())
+                {
+                    num_blocks.erase(num_blocks.begin() + idx_a);
+                    is_delete_a = true;
+                    break;
+                }
+            }
+
+            if (!is_delete_a)
+            {
+                idx_a++;
+            }
+        }
+    }
+
+    /**
+     * @brief 筛选周围存在未知块的数字块
+     *
+     * @param board_of_game
+     * @param num_block
+     */
+    void filter_num_block(const std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks)
+    {
+        const int board_row = board_of_game.size();
+        const int board_col = board_of_game[0].size();
+
+        NumBlock block;
+
+        num_blocks.clear();
+        for (int row = 0; row < board_row; row++)
+        {
+            for (int col = 0; col < board_col; col++)
+            {
+                if (board_of_game[row][col] > 0 && board_of_game[row][col] < 9)
+                {
+                    block.num_block.col = col;
+                    block.num_block.row = row;
+
+                    for (int n_r = std::max(1, row) - 1; n_r < std::min(board_row, row + 2); n_r++)
+                    {
+                        for (int n_c = std::max(1, col) - 1; n_c < std::min(board_col, col + 2); n_c++)
+                        {
+                            if (board_of_game[n_r][n_c] == 10)
+                            {
+                                block.unknown_blocks.push_back(Point(n_c, n_r));
+                            }
+                            else if (board_of_game[n_r][n_c] == 11)
+                            {
+                                block.mines_blocks.push_back(Point(n_c, n_r));
+                            }
+                        }
+                    }
+
+                    if (!block.unknown_blocks.empty())
+                    {
+                        // 排序便于求交集
+                        std::sort(block.unknown_blocks.begin(), block.unknown_blocks.end());
+                        std::sort(block.mines_blocks.begin(), block.mines_blocks.end());
+                        num_blocks.push_back(block);
+                    }
+
+                    block.num_block.col = 0;
+                    block.num_block.row = 0;
+                    block.mines_blocks.clear();
+                    block.unknown_blocks.clear();
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief 求解
+     *
+     * @param board 初始地图
+     * @param board_of_game 游戏地图 0~8：雷的数量 10:未知 11:标记为雷 -1:确定为雷
+     * @return bool 是否求解成功
+     */
+    bool solve(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
+    {
+        bool isSolve = true;            // 是否解决
+        std::vector<Point> total_mines; // 所有炸弹的位置
+
+        // 校验地图
+        check_board(board, board_of_game, total_mines);
+
+        if (SHOW_DEBUG > 0)
+        {
+            printf("board\n");
+            Mines::print_board(board);
+            printf("\n");
+
+            printf("board_of_game\n");
+            Mines::print_board(board_of_game);
+            printf("\n");
+
+            printf("total_mines: %s\n", SZ_Common::toString(total_mines).c_str());
+            printf("\n");
+        }
+
+        while (!isVictory(board_of_game, total_mines))
+        {
+            std::vector<NumBlock> num_blocks; // 存在未知块的数字块
+            filter_num_block(board_of_game, num_blocks);
+
+            std::vector<Point> mines_blocks; // 查早的雷
+            std::vector<Point> safe_blocks;  // 查找的安全块
+
+            bool is_direct = true;
+
+            if (SHOW_DEBUG > 0)
+            {
+                printf("num_blocks 0: %s\n", SZ_Common::toString(num_blocks).c_str());
+                printf("\n");
+            }
+
+            // 单点分析
+            solve_by_direct(board_of_game, num_blocks, mines_blocks, safe_blocks);
+            if (safe_blocks.empty() && mines_blocks.empty())
+            {
+                is_direct = false;
+                // 多点分析
+                solve_by_minus(board_of_game, num_blocks, mines_blocks, safe_blocks);
+                if (safe_blocks.empty() && mines_blocks.empty())
+                {
+                    isSolve = false;
+                    break;
+                }
+            }
+
+            if (SHOW_DEBUG > 0)
+            {
+                printf("mines_blocks: %s\n", SZ_Common::toString(mines_blocks).c_str());
+                printf("safe_blocks: %s\n", SZ_Common::toString(safe_blocks).c_str());
+                printf("\n");
+
+                printf("board_of_game after %s\n", is_direct ? "solve_by_direct" : "solve_by_minus");
+                Mines::print_board(board_of_game);
+                printf("\n");
+            }
+
+            if (open_board(board, board_of_game, safe_blocks))
+            {
+                isSolve = false;
+                break;
+            }
+
+            if (SHOW_DEBUG > 0)
+            {
+                printf("board_of_game after open_board\n");
+                Mines::print_board(board_of_game);
+                printf("\n");
+            }
+        }
+
+        return isSolve;
+    }
 } // namespace MinesSolver
 
 int main()
 {
-    Mines::g_seed = 123456789;
+    Mines::g_seed = 4444333221;
 
-    int row = 9;
-    int column = 9;
-    int mine = 10;
+    int row = 30;
+    int column = 30;
+    int mine = 200;
     int touchRow = row / 2;
     int touchCol = column / 2;
-    int maxtimes = 1000;
-    const int loop = 1;
+    int maxtimes = 1000000;
+
+    int loop = 1000;
 
     int success = 0;
     int failure = 0;
-
-    int startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     for (int i = 1; i <= loop; i++)
     {
+        if (i % 10 == 0)
+        {
+            std::cout << "loop ing: " << i << std::endl;
+        }
+
         std::vector<std::vector<int>> board;
-        bool isSolved = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
+
+        int cur_seed = Mines::g_seed;
+
+        bool is_ok = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        Mines::refresh_board(board, board_of_game, {std::make_pair(touchRow, touchCol)});
+
+        bool isSolved = MinesSolver::solve(board, board_of_game);
+
         if (isSolved)
         {
             success++;
         }
         else
         {
+            std::cout << "loop: " << i << " ,is_ok:" << is_ok << " ,fail: " << cur_seed << std::endl;
             failure++;
         }
-
-        if (i % 5 == 0)
-        {
-            std::cout << "run = " << i << "; success = " << success << "; failure = " << failure << std::endl;
-        }
-
-        if (loop == 1)
-        {
-            Mines::print_board(board);
-        }
     }
-    int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
+
+    std::cout << "loop: " << loop << ", success: " << success << ", failure: " << failure << std::endl;
 
     return 0;
 }
+
+// int main()
+// {
+//     Mines::g_seed = 123456789;
+
+//     int row = 9;
+//     int column = 9;
+//     int mine = 10;
+//     int touchRow = row / 2;
+//     int touchCol = column / 2;
+//     int maxtimes = 1000;
+//     const int loop = 1;
+
+//     int success = 0;
+//     int failure = 0;
+
+//     int startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+//     for (int i = 1; i <= loop; i++)
+//     {
+//         std::vector<std::vector<int>> board;
+//         bool isSolved = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+//         if (isSolved)
+//         {
+//             success++;
+//         }
+//         else
+//         {
+//             failure++;
+//         }
+
+//         if (i % 5 == 0)
+//         {
+//             std::cout << "run = " << i << "; success = " << success << "; failure = " << failure << std::endl;
+//         }
+
+//         if (loop == 1)
+//         {
+//             Mines::print_board(board);
+//         }
+//     }
+//     int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+//     std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
+
+//     return 0;
+// }
