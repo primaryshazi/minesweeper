@@ -48,7 +48,7 @@ namespace Mines
         return (seed * 1.0) / (0x7fffffff * 1.0);
     }
 
-    void shuffle_vector(std::vector<int> &v, int64_t &seed)
+    void shuffle_vector(std::vector<int> &v, int64_t seed)
     {
         for (int i = 0; i < static_cast<int>(v.size()); i++)
         {
@@ -791,7 +791,7 @@ namespace Mines
         int minenum,
         int touchRow,
         int touchCol,
-        int64_t &seed)
+        int64_t seed = -1)
     {
         int areaOp = 9;
         if (touchRow == 0 || touchCol == 0 || touchRow == row - 1 || touchCol == column - 1)
@@ -855,21 +855,19 @@ namespace Mines
         int minenum,
         int touchRow,
         int touchCol,
-        int max_times,
-        int64_t seed = -1)
+        int max_times)
     {
-
         int times = 0;
         while (times < max_times)
         {
-            laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
+            laymine_op(board, row, column, minenum, touchRow, touchCol);
             times++;
             if (is_solvable(board, touchRow, touchCol))
             {
                 return true;
             }
         }
-        laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
+        laymine_op(board, row, column, minenum, touchRow, touchCol);
         return false;
     }
 } // namespace Mines
