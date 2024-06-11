@@ -24,8 +24,6 @@
  */
 namespace Mines
 {
-    int64_t g_seed = -1;
-
     const int ENUM_LIMIT = 55;
 
     double rand_value(int64_t &seed)
@@ -35,17 +33,14 @@ namespace Mines
         return (seed * 1.0) / (0x7fffffff * 1.0);
     }
 
-    int64_t shuffle_vector(std::vector<int> &v, int64_t seed)
+    void shuffle_vector(std::vector<int> &v, int64_t &seed)
     {
-        auto cur_seed = seed;
         for (int i = 0; i < static_cast<int>(v.size()); i++)
         {
-            double rv = rand_value(cur_seed);
+            double rv = rand_value(seed);
             int j = std::floor(rv * (i + 1));
             std::swap(v[i], v[j]);
         }
-
-        return cur_seed;
     }
 
     void print_board(const std::vector<std::vector<int>> &board)
@@ -1116,7 +1111,8 @@ namespace Mines
         int column,
         int minenum,
         int touchRow,
-        int touchCol)
+        int touchCol,
+        int64_t &seed)
     {
         int areaOp = 9;
         if (touchRow == 0 || touchCol == 0 || touchRow == row - 1 || touchCol == column - 1)
@@ -1135,14 +1131,14 @@ namespace Mines
         std::vector<int> appendVec(minenum, -1);
         board_dim.insert(board_dim.end(), appendVec.begin(), appendVec.end());
 
-        if (g_seed < 0)
+        if (seed < 0)
         {
             std::random_device rng;
             std::shuffle(board_dim.begin(), board_dim.end(), rng);
         }
         else
         {
-            g_seed = shuffle_vector(board_dim, g_seed);
+            shuffle_vector(board_dim, seed);
         }
 
         board = std::vector<std::vector<int>>(row, std::vector<int>(column, 0));
@@ -1180,19 +1176,21 @@ namespace Mines
         int minenum,
         int touchRow,
         int touchCol,
-        int max_times)
+        int max_times,
+        int64_t seed = -1)
     {
+
         int times = 0;
         while (times < max_times)
         {
-            laymine_op(board, row, column, minenum, touchRow, touchCol);
+            laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
             times++;
             if (is_solvable(board, touchRow, touchCol))
             {
                 return true;
             }
         }
-        laymine_op(board, row, column, minenum, touchRow, touchCol);
+        laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
         return false;
     }
 } // namespace Mines
@@ -1734,7 +1732,7 @@ namespace MinesSolver
      * @param board_of_game 游戏地图 0~8：雷的数量 10:未知 11:标记为雷 12:标记为安全块 -1:确定为雷
      * @return bool 是否求解成功
      */
-    bool solve(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
+    bool is_solve(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
     {
         bool isSolve = true;            // 是否解决
         std::vector<Point> total_mines; // 所有炸弹的位置
@@ -1815,95 +1813,89 @@ namespace MinesSolver
     }
 } // namespace MinesSolver
 
-// int main()
-// {
-//     Mines::g_seed = -1;
-
-//     int row = 30;
-//     int column = 30;
-//     int mine = 200;
-//     int touchRow = row / 2;
-//     int touchCol = column / 2;
-//     int maxtimes = 1000000;
-
-//     int loop = 100;
-
-//     int success = 0;
-//     int failure = 0;
-//     for (int i = 1; i <= loop; i++)
-//     {
-//         if (i % 10 == 0)
-//         {
-//             std::cout << "loop ing: " << i << std::endl;
-//         }
-
-//         std::vector<std::vector<int>> board;
-//         std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
-
-//         int cur_seed = Mines::g_seed;
-
-//         bool is_ok = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
-//         Mines::refresh_board(board, board_of_game, {std::make_pair(touchRow, touchCol)});
-
-//         bool isSolved = MinesSolver::solve(board, board_of_game);
-
-//         if (isSolved)
-//         {
-//             success++;
-//         }
-//         else
-//         {
-//             std::cout << "loop: " << i << " ,is_ok:" << is_ok << " ,fail: " << cur_seed << std::endl;
-//             failure++;
-//         }
-//     }
-
-//     std::cout << "loop: " << loop << ", success: " << success << ", failure: " << failure << std::endl;
-
-//     return 0;
-// }
-
 int main()
 {
-    Mines::g_seed = -1;
-
     int row = 30;
     int column = 30;
     int mine = 200;
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
-    const int loop = 100;
+
+    int loop = 100;
 
     int success = 0;
     int failure = 0;
-
-    int startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     for (int i = 1; i <= loop; i++)
     {
+        if (i % 10 == 0)
+        {
+            std::cout << "loop ing: " << i << std::endl;
+        }
+
         std::vector<std::vector<int>> board;
-        bool isSolved = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
+
+        bool is_ok = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        Mines::refresh_board(board, board_of_game, {std::make_pair(touchRow, touchCol)});
+
+        bool isSolved = MinesSolver::is_solve(board, board_of_game);
+
         if (isSolved)
         {
             success++;
         }
         else
         {
+            std::cout << "loop: " << i << " ,is_ok:" << is_ok << " ,fail: " << std::endl;
             failure++;
         }
-
-        if (i % 5 == 0)
-        {
-            std::cout << "run = " << i << "; success = " << success << "; failure = " << failure << std::endl;
-        }
-
-        if (loop == 1)
-        {
-            Mines::print_board(board);
-        }
     }
-    int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
+
+    std::cout << "loop: " << loop << ", success: " << success << ", failure: " << failure << std::endl;
 
     return 0;
 }
+
+// int main()
+// {
+//     int row = 30;
+//     int column = 30;
+//     int mine = 200;
+//     int touchRow = row / 2;
+//     int touchCol = column / 2;
+//     int maxtimes = 1000;
+//     const int loop = 100000;
+
+//     int success = 0;
+//     int failure = 0;
+
+//     int startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+//     for (int i = 1; i <= loop; i++)
+//     {
+//         std::vector<std::vector<int>> board;
+//         bool isSolved = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+//         if (isSolved)
+//         {
+//             success++;
+//         }
+//         else
+//         {
+//             failure++;
+//         }
+
+//         if (i % 100 == 0)
+//         {
+//             std::cout << "run = " << i << "; success = " << success << "; failure = " << failure << std::endl;
+//         }
+
+//         if (loop == 1)
+//         {
+//             Mines::print_board(board);
+//         }
+//     }
+//     int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+//     std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
+
+//     return 0;
+// }
