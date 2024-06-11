@@ -962,7 +962,17 @@ namespace MinesSolver
         std::vector<Point> res_safe_blocks;  // 求解周围安全块
     };
 
-    // 单点分析结果
+    /**
+     * @brief 单点分析结果
+     *
+     * 在九宫中，共有X个雷，已知M个雷，N个未知块。
+     *
+     *  M   b
+     *  a X M
+     *
+     * 如果 M + N == X，则N均为雷。故a b为雷
+     * 如果 M == x，则N均不为雷。故a b不为雷
+     */
     struct SolveDirect : public SolveResult
     {
         SolveDirect() { type = 1; }
@@ -974,7 +984,16 @@ namespace MinesSolver
         std::vector<Point> init_unknown_blocks; // 初始未知块
     };
 
-    // 多点分析结果
+    /**
+     * @brief 双点分析结果
+     *
+     * 在两个九宫中，分别有X和Y个雷，分别已知Mx个雷和Nx个未知块，My个雷和Ny个未知块
+     *
+     *  a b c M
+     *  M X Y d
+     *
+     * 如果 X - Mx - (Y - My) = Nx - Intersect(Nx, Ny)，则Nx - Intersect(Nx, Ny)为雷，Ny - Intersect(Nx, Ny)不为雷。故a为雷，d不为雷
+     */
     struct SolveMinus : public SolveResult
     {
         SolveMinus() { type = 2; }
@@ -988,6 +1007,8 @@ namespace MinesSolver
 
         std::vector<Point> init_mines_blocks_y;   // Y初始雷块
         std::vector<Point> init_unknown_blocks_y; // Y初始未知块
+
+        std::vector<Point> init_intersect_blocks; // 初始相交的未知块
     };
 
     /**
@@ -1324,6 +1345,8 @@ namespace MinesSolver
                             sm.init_mines_blocks_y = num_blocks[idx_b].mines_blocks;
                             sm.init_unknown_blocks_y = num_blocks[idx_b].unknown_blocks;
 
+                            sm.init_intersect_blocks = intersect_blocks;
+
                             // a 中不在公共区域的均为雷
                             for (auto it_unknown = num_blocks[idx_a].unknown_blocks.begin(); it_unknown != num_blocks[idx_a].unknown_blocks.end();)
                             {
@@ -1384,6 +1407,8 @@ namespace MinesSolver
                             sm.num_block_y = num_blocks[idx_a].num_block;
                             sm.init_mines_blocks_y = num_blocks[idx_a].mines_blocks;
                             sm.init_unknown_blocks_y = num_blocks[idx_a].unknown_blocks;
+
+                            sm.init_intersect_blocks = intersect_blocks;
 
                             // b 中不在公共区域的均为雷
                             for (auto it_unknown = num_blocks[idx_b].unknown_blocks.begin(); it_unknown != num_blocks[idx_b].unknown_blocks.end();)
@@ -1579,11 +1604,31 @@ int main()
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
+    int loop = 10000;
 
-    std::vector<std::vector<int>> board;
-    Mines::laymine_solvable_with_seed(board, row, column, mine, touchRow, touchCol, maxtimes, -1);
-    bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
-    std::cout << (is_solve ? "true" : "false") << std::endl;
+    int success = 0;
+    int failure = 0;
+    for (int i = 1; i <= loop; i++)
+    {
+        std::vector<std::vector<int>> board;
+        Mines::laymine_solvable_with_seed(board, row, column, mine, touchRow, touchCol, maxtimes, -1);
+        bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
+        if (is_solve)
+        {
+            success++;
+        }
+        else
+        {
+            failure++;
+        }
+
+        if (i % 100 == 0)
+        {
+            std::cout << "loop ing: " << i << " success: " << success << " failure: " << failure << std::endl;
+        }
+    }
+
+    std::cout << "success: " << success << " failure: " << failure << std::endl;
 
     return 0;
 }
