@@ -17,7 +17,7 @@
 
 #include "SZCommon.h"
 
-#define SHOW_DEBUG 1000
+#define SHOW_DEBUG 0
 
 void print_board(const std::vector<std::vector<int>> &board)
 {
@@ -870,6 +870,35 @@ namespace Mines
         laymine_op(board, row, column, minenum, touchRow, touchCol);
         return false;
     }
+
+    bool laymine_solvable_with_seed(
+        std::vector<std::vector<int>> &board,
+        int row,
+        int column,
+        int minenum,
+        int touchRow,
+        int touchCol,
+        int max_times,
+        int64_t seed)
+    {
+        int times = 0;
+        while (times < max_times)
+        {
+            laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
+            times++;
+            if (is_solvable(board, touchRow, touchCol))
+            {
+                return true;
+            }
+
+            if (seed > 0)
+            {
+                rand_value(seed);
+            }
+        }
+        laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
+        return false;
+    }
 } // namespace Mines
 
 namespace MinesSolver
@@ -1512,7 +1541,7 @@ int main()
     int maxtimes = 1000;
 
     std::vector<std::vector<int>> board;
-    Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+    Mines::laymine_solvable_with_seed(board, row, column, mine, touchRow, touchCol, maxtimes, -1);
     bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
     std::cout << (is_solve ? "true" : "false") << std::endl;
 
