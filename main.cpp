@@ -19,6 +19,21 @@
 
 #define SHOW_DEBUG 0
 
+void print_board(const std::vector<std::vector<int>> &board)
+{
+    int board_row = board.size();
+    int board_column = board_row > 0 ? board[0].size() : 0;
+    for (int r = 0; r < board_row; r++)
+    {
+        printf("{");
+        for (int c = 0; c < board_column; c++)
+        {
+            printf("%2d, ", board[r][c]);
+        }
+        printf("},\n");
+    }
+}
+
 /**
  * Mines中所有坐标均为(row, column)
  */
@@ -40,21 +55,6 @@ namespace Mines
             double rv = rand_value(seed);
             int j = std::floor(rv * (i + 1));
             std::swap(v[i], v[j]);
-        }
-    }
-
-    void print_board(const std::vector<std::vector<int>> &board)
-    {
-        int board_row = board.size();
-        int board_column = board_row > 0 ? board[0].size() : 0;
-        for (int r = 0; r < board_row; r++)
-        {
-            printf("{");
-            for (int c = 0; c < board_column; c++)
-            {
-                printf("%2d, ", board[r][c]);
-            }
-            printf("},\n");
         }
     }
 
@@ -709,327 +709,6 @@ namespace Mines
         return make_tuple(not_mine, is_mine);
     }
 
-    void combine(const std::vector<std::vector<int>> &MatrixA, const std::vector<std::pair<int, int>> &Matrixx,
-                 std::vector<std::vector<int>> &matrixA_squeeze, std::vector<std::pair<int, int>> &matrixx_squeeze, std::vector<std::vector<int>> &pair_cells)
-    {
-        matrixA_squeeze = MatrixA;
-        matrixx_squeeze = Matrixx;
-        pair_cells.clear();
-
-        int cells_num = matrixx_squeeze.size();
-        std::vector<int> del_cells;
-        for (int i = 0; i < cells_num; i++)
-        {
-            pair_cells.push_back({i});
-            for (int j = i + 1; j < cells_num; j++)
-            {
-                if (std::none_of(matrixA_squeeze.begin(), matrixA_squeeze.end(), [&](const std::vector<int> &x)
-                                 { return x[i] != x[j]; }))
-                {
-                    pair_cells[i].push_back(j);
-                    del_cells.push_back(j);
-                }
-            }
-        }
-        std::sort(del_cells.begin(), del_cells.end(), std::greater<int>());
-        del_cells.erase(unique(del_cells.begin(), del_cells.end()), del_cells.end());
-        for (int i : del_cells)
-        {
-            for (auto &row : matrixA_squeeze)
-            {
-                row.erase(row.begin() + i);
-            }
-            matrixx_squeeze.erase(matrixx_squeeze.begin() + i);
-            pair_cells.erase(pair_cells.begin() + i);
-        }
-        int cell_squeeze_num = pair_cells.size();
-        for (int i = 0; i < cell_squeeze_num; i++)
-        {
-            int k = pair_cells[i].size();
-            for (auto &row : matrixA_squeeze)
-            {
-                row[i] *= k;
-            }
-        }
-    }
-
-    std::tuple<std::vector<std::vector<int>>, std::vector<std::vector<int>>>
-    cal_cell_and_equation_map(const std::vector<std::vector<int>> &matrix_a)
-    {
-        int cells_num = matrix_a[0].size();
-        int equations_num = matrix_a.size();
-        std::vector<std::vector<int>> cell_to_equation_map(cells_num);
-        std::vector<std::vector<int>> equation_to_cell_map(equations_num);
-        for (int i = 0; i < equations_num; i++)
-        {
-            for (int j = 0; j < cells_num; j++)
-            {
-                if (matrix_a[i][j] >= 1)
-                {
-                    equation_to_cell_map[i].push_back(j);
-                    cell_to_equation_map[j].push_back(i);
-                }
-            }
-        }
-        return std::make_pair(cell_to_equation_map, equation_to_cell_map);
-    }
-
-    template <typename T, typename U>
-    int C_query(T n, U k)
-    {
-        // 查表计算8以内小数字的组合数
-        static std::array<std::array<int, 9>, 9> a{{{1, 0, 0, 0, 0, 0, 0, 0, 0},
-                                                    {1, 1, 0, 0, 0, 0, 0, 0, 0},
-                                                    {1, 2, 1, 0, 0, 0, 0, 0, 0},
-                                                    {1, 3, 3, 1, 0, 0, 0, 0, 0},
-                                                    {1, 4, 6, 4, 1, 0, 0, 0, 0},
-                                                    {1, 5, 10, 10, 5, 1, 0, 0, 0},
-                                                    {1, 6, 15, 20, 15, 6, 1, 0, 0},
-                                                    {1, 7, 21, 35, 35, 21, 7, 1, 0},
-                                                    {1, 8, 28, 56, 70, 56, 28, 8, 1}}};
-        return a[n][k];
-    }
-
-    bool cal_table_minenum_recursion_step(
-        int idx,
-        int current_amount,
-        std::array<std::vector<int>, 2> &table_minenum,
-        std::vector<std::vector<int>> &table_cell_minenum,
-        const std::vector<std::vector<int>> &matrixA_squeeze,
-        const std::vector<int> &matrix_b,
-        std::vector<int> &matrix_b_remain,
-        const std::vector<std::vector<int>> &combination_relationship,
-        const std::vector<std::vector<int>> &cell_to_equation_map,
-        const std::vector<std::vector<int>> &equation_to_cell_map,
-        std::vector<int> &mine_vec)
-    {
-        int cells_num = matrixA_squeeze[0].size();
-        if (idx >= cells_num)
-        {
-            // 终止条件
-            int total_mines_num = std::accumulate(mine_vec.begin(), mine_vec.end(), 0);
-            if (total_mines_num >= static_cast<int>(table_minenum[1].size()))
-            {
-                return false;
-            }
-            table_minenum[1][total_mines_num] += current_amount;
-            for (int idn = 0; idn < static_cast<int>(mine_vec.size()); idn++)
-            {
-                table_cell_minenum[total_mines_num][idn] += current_amount * mine_vec[idn] / combination_relationship[idn].size();
-            }
-            return true;
-        }
-
-        int upper_limit = combination_relationship[idx].size();
-        int lower_limit = 0;
-        for (auto cell_i : cell_to_equation_map[idx])
-        {
-            if (matrixA_squeeze[cell_i][idx] == 0)
-            {
-                continue;
-            }
-            int upper_limit_i = std::min(matrix_b_remain[cell_i], static_cast<int>(combination_relationship[idx].size()));
-            int lower_limit_i = matrix_b_remain[cell_i];
-            for (auto j : equation_to_cell_map[cell_i])
-            {
-                if (j > idx)
-                {
-                    lower_limit_i -= combination_relationship[j].size();
-                }
-            }
-            if (upper_limit_i < static_cast<int>(upper_limit))
-            {
-                upper_limit = upper_limit_i;
-            }
-            if (lower_limit_i > static_cast<int>(lower_limit))
-            {
-                lower_limit = lower_limit_i;
-            }
-        }
-
-        for (int u = lower_limit; u < upper_limit + 1; u++)
-        {
-            mine_vec[idx] = u;
-            if (u > 0)
-            {
-                for (auto tt : cell_to_equation_map[idx])
-                {
-                    matrix_b_remain[tt] -= u;
-                }
-            }
-            cal_table_minenum_recursion_step(
-                idx + 1,
-                current_amount * C_query(combination_relationship[idx].size(), u),
-                table_minenum,
-                table_cell_minenum,
-                matrixA_squeeze,
-                matrix_b,
-                matrix_b_remain,
-                combination_relationship,
-                cell_to_equation_map,
-                equation_to_cell_map,
-                mine_vec);
-            for (auto tt : cell_to_equation_map[idx])
-            {
-                matrix_b_remain[tt] += u;
-            }
-            mine_vec[idx] = 0;
-        }
-        return false;
-    }
-
-    std::pair<std::array<std::vector<int>, 2>, std::vector<std::vector<int>>> cal_table_minenum_recursion(
-        const std::vector<std::vector<int>> &matrixA_squeeze,
-        const std::vector<std::pair<int, int>> &matrixx_squeeze,
-        const std::vector<int> &matrix_b,
-        const std::vector<std::vector<int>> &combination_relationship)
-    {
-        // 递归算法，得到雷数分布表和每格是雷情况数表，顺便计算最小、最大雷数
-        // 输入矩阵必须是非空的，且行列数必须匹配
-        // 行数和列数至少为1
-        int cells_num = matrixx_squeeze.size();
-        if (cells_num > ENUM_LIMIT)
-        {
-            // 超出枚举极限长度异常
-            return std::make_pair(std::array<std::vector<int>, 2>{}, std::vector<std::vector<int>>{});
-        }
-        int cells_num_total = std::accumulate(combination_relationship.begin(), combination_relationship.end(), 0,
-                                              [](int item, const std::vector<int> &x)
-                                              { return item + x.size(); });
-        // cells_num_total指合并前的格子数
-
-        bool flag_legal_board = true;
-        std::array<std::vector<int>, 2> table_minenum{{std::vector<int>(cells_num_total + 1),
-                                                       std::vector<int>(cells_num_total + 1, 0)}};
-
-        auto cal_cell_and_equation_map_ans = cal_cell_and_equation_map(matrixA_squeeze);
-        auto cell_to_equation_map = std::get<0>(cal_cell_and_equation_map_ans);
-        auto equation_to_cell_map = std::get<1>(cal_cell_and_equation_map_ans);
-        // 计算两个映射表以减少复杂度
-        // std::cout << "cell_to_equation_map = " << cell_to_equation_map << "; equation_to_cell_map = " << equation_to_cell_map << std::endl;
-
-        std::vector<std::vector<int>>
-            table_cell_minenum(cells_num_total + 1, std::vector<int>(cells_num, 0));
-
-        // std::cout << matrixA_squeeze << std::endl;
-
-        {
-            auto matrix_b_clone = matrix_b;
-            auto mine_vec = std::vector<int>(cells_num, 0);
-            cal_table_minenum_recursion_step(
-                0,
-                1,
-                table_minenum,
-                table_cell_minenum,
-                matrixA_squeeze,
-                matrix_b,
-                matrix_b_clone,
-                combination_relationship,
-                cell_to_equation_map,
-                equation_to_cell_map,
-                mine_vec);
-        }
-        // std::cout << "table_cell_minenum" << table_cell_minenum << std::endl;
-        // std::cout << "table_minenum" << table_minenum[0] << ", " << table_minenum[1] << std::endl;
-        while (table_minenum[1][0] == 0)
-        {
-            table_minenum[0].erase(table_minenum[0].begin());
-            table_minenum[1].erase(table_minenum[1].begin());
-            table_cell_minenum.erase(table_cell_minenum.begin());
-            if (table_cell_minenum.empty())
-            {
-                flag_legal_board = false;
-                break;
-            }
-        }
-        if (flag_legal_board)
-        {
-            while (table_minenum[1][table_cell_minenum.size() - 1] == 0)
-            {
-                table_minenum[0].pop_back();
-                table_minenum[1].pop_back();
-                table_cell_minenum.pop_back();
-            }
-        }
-        if (flag_legal_board)
-        {
-            return std::make_pair(table_minenum, table_cell_minenum);
-        }
-        else
-        {
-            return std::make_pair(std::array<std::vector<int>, 2>{}, std::vector<std::vector<int>>{});
-        }
-    }
-
-    std::pair<std::vector<std::pair<int, int>>, std::vector<std::pair<int, int>>> solve_enumerate(
-        const std::vector<std::vector<std::vector<int>>> &As,
-        const std::vector<std::vector<std::pair<int, int>>> &xs,
-        const std::vector<std::vector<int>> &bs)
-    {
-        if (bs.empty())
-        {
-            return std::make_pair(std::vector<std::pair<int, int>>(), std::vector<std::pair<int, int>>());
-        }
-
-        std::vector<std::pair<int, int>> not_mine;
-        std::vector<std::pair<int, int>> is_mine;
-        int block_num = xs.size();
-
-        std::vector<std::vector<std::vector<int>>> comb_relp_s;
-        std::vector<std::vector<std::vector<int>>> matrixA_squeeze_s;
-        std::vector<std::vector<std::pair<int, int>>> matrixx_squeeze_s;
-        for (int i = 0; i < block_num; i++)
-        {
-            if (xs[i].size() > ENUM_LIMIT)
-            {
-                return std::make_pair(not_mine, is_mine);
-            }
-
-            std::vector<std::vector<int>> matrixA_squeeze;
-            std::vector<std::pair<int, int>> matrixx_squeeze;
-            std::vector<std::vector<int>> combination_relationship;
-            combine(As[i], xs[i], matrixA_squeeze, matrixx_squeeze, combination_relationship);
-
-            comb_relp_s.emplace_back(combination_relationship);
-            matrixA_squeeze_s.emplace_back(matrixA_squeeze);
-            matrixx_squeeze_s.emplace_back(matrixx_squeeze);
-        }
-        for (int i = 0; i < block_num; i++)
-        {
-            auto cal_table_minenum_recursion_ans = cal_table_minenum_recursion(
-                matrixA_squeeze_s[i],
-                matrixx_squeeze_s[i],
-                bs[i],
-                comb_relp_s[i]);
-            auto table_minenum_i = std::get<0>(cal_table_minenum_recursion_ans);
-            auto table_cell_minenum_i = std::get<1>(cal_table_minenum_recursion_ans);
-
-            for (int jj = 0; jj < static_cast<int>(table_cell_minenum_i[0].size()); jj++)
-            {
-                int s_num = 0; // 该合成格子的总情况数
-                for (int ii = 0; ii < static_cast<int>(table_cell_minenum_i.size()); ii++)
-                {
-                    s_num += table_cell_minenum_i[ii][jj];
-                }
-                if (s_num == 0)
-                {
-                    for (auto kk : comb_relp_s[i][jj])
-                    {
-                        not_mine.emplace_back(xs[i][kk]);
-                    }
-                }
-                else if (s_num == std::accumulate(table_minenum_i[1].begin(), table_minenum_i[1].end(), 0))
-                {
-                    for (auto kk : comb_relp_s[i][jj])
-                    {
-                        is_mine.emplace_back(xs[i][kk]);
-                    }
-                }
-            }
-        }
-        return std::make_pair(not_mine, is_mine);
-    }
-
     void get_total_mines(const std::vector<std::vector<int>> &board, std::vector<std::pair<int, int>> &total_mines)
     {
         int row = board.size();
@@ -1169,7 +848,7 @@ namespace Mines
         }
     }
 
-    bool laymine_solvable(
+    std::pair<bool, int> laymine_solvable(
         std::vector<std::vector<int>> &board,
         int row,
         int column,
@@ -1187,11 +866,11 @@ namespace Mines
             times++;
             if (is_solvable(board, touchRow, touchCol))
             {
-                return true;
+                return std::make_pair(true, times);
             }
         }
         laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
-        return false;
+        return std::make_pair(false, times);
     }
 } // namespace Mines
 
@@ -1743,11 +1422,11 @@ namespace MinesSolver
         if (SHOW_DEBUG > 0)
         {
             printf("board\n");
-            Mines::print_board(board);
+            print_board(board);
             printf("\n");
 
             printf("board_of_game\n");
-            Mines::print_board(board_of_game);
+            print_board(board_of_game);
             printf("\n");
 
             printf("total_mines: %s\n", SZ_Common::toString(total_mines).c_str());
@@ -1791,7 +1470,7 @@ namespace MinesSolver
                 printf("\n");
 
                 printf("board_of_game after %s\n", is_direct ? "solve_by_direct" : "solve_by_minus");
-                Mines::print_board(board_of_game);
+                print_board(board_of_game);
                 printf("\n");
             }
 
@@ -1804,7 +1483,7 @@ namespace MinesSolver
             if (SHOW_DEBUG > 0)
             {
                 printf("board_of_game after open_board\n");
-                Mines::print_board(board_of_game);
+                print_board(board_of_game);
                 printf("\n");
             }
         }
@@ -1813,46 +1492,90 @@ namespace MinesSolver
     }
 } // namespace MinesSolver
 
+#include <atomic>
+#include <thread>
+#include <chrono>
+
 int main()
 {
-    int row = 30;
-    int column = 30;
-    int mine = 200;
-    int touchRow = row / 2;
-    int touchCol = column / 2;
-    int maxtimes = 1000;
+    const int row = 30;
+    const int column = 30;
+    const int mine = 200;
+    const int touchRow = row / 2;
+    const int touchCol = column / 2;
+    const int maxtimes = 1000;
 
-    int loop = 100;
+    const int loop = 1250;
+    const int threads_num = 8;
 
-    int success = 0;
-    int failure = 0;
-    for (int i = 1; i <= loop; i++)
+    std::atomic_int16_t total_loop(0);
+    std::atomic_int16_t success(0);
+    std::atomic_int16_t failure(0);
+    std::atomic_int16_t success_max_times(0);
+
+    auto test_func = [=, &total_loop, &success, &failure, &success_max_times]()
     {
-        if (i % 10 == 0)
+        for (int i = 1; i <= loop; i++)
         {
-            std::cout << "loop ing: " << i << std::endl;
+            std::vector<std::vector<int>> board;
+            std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
+
+            auto result = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+            Mines::refresh_board(board, board_of_game, {std::make_pair(touchRow, touchCol)});
+
+            bool is_ok = result.first;
+            int times = result.second;
+
+            bool isSolved = MinesSolver::is_solve(board, board_of_game);
+
+            if (isSolved)
+            {
+                success.fetch_add(1);
+                if (times > success_max_times)
+                {
+                    success_max_times = times;
+                }
+            }
+            else
+            {
+                failure.fetch_add(1);
+            }
+
+            total_loop.fetch_add(1);
         }
+    };
 
-        std::vector<std::vector<int>> board;
-        std::vector<std::vector<int>> board_of_game(row, std::vector<int>(column, 10));
+    std::vector<std::thread> threads;
+    for (int i = 0; i < 8; i++)
+    {
+        threads.emplace_back(std::thread(test_func));
+    }
 
-        bool is_ok = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
-        Mines::refresh_board(board, board_of_game, {std::make_pair(touchRow, touchCol)});
-
-        bool isSolved = MinesSolver::is_solve(board, board_of_game);
-
-        if (isSolved)
+    while (true)
+    {
+        if (total_loop < threads_num * loop)
         {
-            success++;
+            int cur_loop = total_loop.load();
+
+            std::cout << "loop ing: " << cur_loop << " success: " << success << " failure: " << failure << " success_max_times: " << success_max_times << std::endl;
+
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         else
         {
-            std::cout << "loop: " << i << " ,is_ok:" << is_ok << " ,fail: " << std::endl;
-            failure++;
+            break;
         }
     }
 
-    std::cout << "loop: " << loop << ", success: " << success << ", failure: " << failure << std::endl;
+    for (auto &t : threads)
+    {
+        if (t.joinable())
+        {
+            t.join();
+        }
+    }
+
+    std::cout << "loop end: " << total_loop << " success: " << success << " failure: " << failure << " success_max_times: " << success_max_times << std::endl;
 
     return 0;
 }
