@@ -720,7 +720,7 @@ namespace Mines
             {
                 if (board[i][j] == -1)
                 {
-                    total_mines.emplace_back(std::make_pair(i, j));
+                    total_mines.push_back(std::make_pair(i, j));
                 }
             }
         }
@@ -950,17 +950,44 @@ namespace MinesSolver
         }
     };
 
-    // 单点分析结果
-    struct SolveDirect
+    // 求解结果
+    struct SolveResult
     {
-        Point num_block; // 中心数字块
+        SolveResult() {}
+        virtual ~SolveResult() {}
 
-        std::vector<Point> init_mines_blocks;   // 初始雷块
-        std::vector<Point> init_safe_blocks;    // 初始安全块
-        std::vector<Point> init_unknown_blocks; // 初始未知块
+        int type = 0; // 0: 随便结果； 1: 单点分析结果； 2: 多点分析结果
 
         std::vector<Point> res_mines_blocks; // 求解周围地雷块
         std::vector<Point> res_safe_blocks;  // 求解周围安全块
+    };
+
+    // 单点分析结果
+    struct SolveDirect : public SolveResult
+    {
+        SolveDirect() { type = 1; }
+        virtual ~SolveDirect() {}
+
+        Point num_block; // 中心数字块
+
+        std::vector<Point> init_mines_blocks;   // 初始雷块
+        std::vector<Point> init_unknown_blocks; // 初始未知块
+    };
+
+    // 多点分析结果
+    struct SolveMinus : public SolveResult
+    {
+        SolveMinus() { type = 2; }
+        virtual ~SolveMinus() {}
+
+        Point num_block_x; // X数字块
+        Point num_block_y; // Y数字块
+
+        std::vector<Point> init_mines_blocks_x;   // X初始雷块
+        std::vector<Point> init_unknown_blocks_x; // X初始未知块
+
+        std::vector<Point> init_mines_blocks_y;   // Y初始雷块
+        std::vector<Point> init_unknown_blocks_y; // Y初始未知块
     };
 
     /**
@@ -1079,10 +1106,12 @@ namespace MinesSolver
      * @param res_mines_blocks
      * @param res_safe_blocks
      */
-    void solve_by_direct(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    std::vector<SolveDirect> solve_by_direct(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
     {
         res_mines_blocks.clear();
         res_safe_blocks.clear();
+
+        std::vector<SolveDirect> solve_directs;
 
         for (auto it = num_blocks.begin(); it != num_blocks.end();)
         {
@@ -1118,12 +1147,19 @@ namespace MinesSolver
             int mines_num = it->mines_blocks.size();
             int unknown_num = it->unknown_blocks.size();
 
+            // 记录求解结果
+            SolveDirect sd;
+            sd.num_block = it->num_block;
+            sd.init_mines_blocks = it->mines_blocks;
+            sd.init_unknown_blocks = it->unknown_blocks;
+
             if (total_mines == mines_num)
             {
                 for (auto it_unknown = it->unknown_blocks.begin(); it_unknown != it->unknown_blocks.end();)
                 {
-                    board_of_game[it_unknown->row][it_unknown->col] = 12;
+                    sd.res_safe_blocks.push_back(*it_unknown);
 
+                    board_of_game[it_unknown->row][it_unknown->col] = 12;
                     res_safe_blocks.push_back(*it_unknown);
                     it_unknown = it->unknown_blocks.erase(it_unknown);
                 }
@@ -1132,10 +1168,17 @@ namespace MinesSolver
             {
                 for (auto it_unknown = it->unknown_blocks.begin(); it_unknown != it->unknown_blocks.end();)
                 {
+                    sd.res_mines_blocks.push_back(*it_unknown);
+
                     board_of_game[it_unknown->row][it_unknown->col] = 11;
                     res_mines_blocks.push_back(*it_unknown);
                     it_unknown = it->unknown_blocks.erase(it_unknown);
                 }
+            }
+
+            if (!sd.res_mines_blocks.empty() || !sd.res_safe_blocks.empty())
+            {
+                solve_directs.push_back(sd);
             }
 
             if (it->unknown_blocks.empty())
@@ -1147,6 +1190,8 @@ namespace MinesSolver
                 ++it;
             }
         }
+
+        return solve_directs;
     }
 
     /**
@@ -1164,10 +1209,12 @@ namespace MinesSolver
      * @param res_mines_blocks
      * @param res_safe_blocks
      */
-    void solve_by_minus(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    std::vector<SolveMinus> solve_by_minus(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
     {
         res_mines_blocks.clear();
         res_safe_blocks.clear();
+
+        std::vector<SolveMinus> solve_minuses;
 
         for (int idx_a = 0; idx_a < static_cast<int>(num_blocks.size());)
         {
@@ -1258,14 +1305,6 @@ namespace MinesSolver
 
                 int intersect_num = intersect_blocks.size(); // 相交的未知块
 
-                if (SHOW_DEBUG > 999)
-                {
-                    printf("block_a: %s\n", SZ_Common::toString(num_blocks[idx_a]).c_str());
-                    printf("block_b: %s\n", SZ_Common::toString(num_blocks[idx_b]).c_str());
-                    printf("intersect_blocks: %s\n", SZ_Common::toString(intersect_blocks).c_str());
-                    printf("\n");
-                }
-
                 do
                 {
                     if (total_mines_a - mines_num_a >= total_mines_b - mines_num_b)
@@ -1275,11 +1314,23 @@ namespace MinesSolver
 
                         if (left == right)
                         {
+                            // 记录求解结果
+                            SolveMinus sm;
+                            sm.num_block_x = num_blocks[idx_a].num_block;
+                            sm.init_mines_blocks_x = num_blocks[idx_a].mines_blocks;
+                            sm.init_unknown_blocks_x = num_blocks[idx_a].unknown_blocks;
+
+                            sm.num_block_y = num_blocks[idx_b].num_block;
+                            sm.init_mines_blocks_y = num_blocks[idx_b].mines_blocks;
+                            sm.init_unknown_blocks_y = num_blocks[idx_b].unknown_blocks;
+
                             // a 中不在公共区域的均为雷
                             for (auto it_unknown = num_blocks[idx_a].unknown_blocks.begin(); it_unknown != num_blocks[idx_a].unknown_blocks.end();)
                             {
                                 if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
                                 {
+                                    sm.res_mines_blocks.push_back(*it_unknown);
+
                                     board_of_game[it_unknown->row][it_unknown->col] = 11;
                                     res_mines_blocks.push_back(*it_unknown);
                                     num_blocks[idx_a].mines_blocks.push_back(*it_unknown);
@@ -1296,6 +1347,8 @@ namespace MinesSolver
                             {
                                 if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
                                 {
+                                    sm.res_safe_blocks.push_back(*it_unknown);
+
                                     board_of_game[it_unknown->row][it_unknown->col] = 12;
                                     res_safe_blocks.push_back(*it_unknown);
                                     it_unknown = num_blocks[idx_b].unknown_blocks.erase(it_unknown);
@@ -1304,6 +1357,11 @@ namespace MinesSolver
                                 {
                                     ++it_unknown;
                                 }
+                            }
+
+                            if (!sm.res_mines_blocks.empty() || !sm.res_safe_blocks.empty())
+                            {
+                                solve_minuses.push_back(sm);
                             }
 
                             break;
@@ -1317,11 +1375,23 @@ namespace MinesSolver
 
                         if (left == right)
                         {
+                            // 记录求解结果
+                            SolveMinus sm;
+                            sm.num_block_x = num_blocks[idx_b].num_block;
+                            sm.init_mines_blocks_x = num_blocks[idx_b].mines_blocks;
+                            sm.init_unknown_blocks_x = num_blocks[idx_b].unknown_blocks;
+
+                            sm.num_block_y = num_blocks[idx_a].num_block;
+                            sm.init_mines_blocks_y = num_blocks[idx_a].mines_blocks;
+                            sm.init_unknown_blocks_y = num_blocks[idx_a].unknown_blocks;
+
                             // b 中不在公共区域的均为雷
                             for (auto it_unknown = num_blocks[idx_b].unknown_blocks.begin(); it_unknown != num_blocks[idx_b].unknown_blocks.end();)
                             {
                                 if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
                                 {
+                                    sm.res_mines_blocks.push_back(*it_unknown);
+
                                     board_of_game[it_unknown->row][it_unknown->col] = 11;
                                     res_mines_blocks.push_back(*it_unknown);
                                     num_blocks[idx_b].mines_blocks.push_back(*it_unknown);
@@ -1338,6 +1408,8 @@ namespace MinesSolver
                             {
                                 if (std::find(intersect_blocks.begin(), intersect_blocks.end(), *it_unknown) == intersect_blocks.end())
                                 {
+                                    sm.res_safe_blocks.push_back(*it_unknown);
+
                                     board_of_game[it_unknown->row][it_unknown->col] = 12;
                                     res_safe_blocks.push_back(*it_unknown);
                                     it_unknown = num_blocks[idx_a].unknown_blocks.erase(it_unknown);
@@ -1347,6 +1419,12 @@ namespace MinesSolver
                                     ++it_unknown;
                                 }
                             }
+
+                            if (!sm.res_mines_blocks.empty() || !sm.res_safe_blocks.empty())
+                            {
+                                solve_minuses.push_back(sm);
+                            }
+
                             break;
                         }
                     }
@@ -1374,6 +1452,8 @@ namespace MinesSolver
                 idx_a++;
             }
         }
+
+        return solve_minuses;
     }
 
     /**
@@ -1435,12 +1515,12 @@ namespace MinesSolver
      * @brief 求解 游戏地图 0~8：雷的数量 10:未知 11:标记为雷 12:标记为安全块 -1:确定为雷
      *
      * @param board
-     * @param touchRow
-     * @param touchCol
+     * @param touch_row
+     * @param touch_col
      * @return true
      * @return false
      */
-    bool is_solvable(const std::vector<std::vector<int>> &board, int touchRow, int touchCol)
+    bool is_solvable(const std::vector<std::vector<int>> &board, int touch_row, int touch_col)
     {
         const int board_row = board.size();
         const int board_col = board[0].size();
@@ -1449,7 +1529,7 @@ namespace MinesSolver
 
         std::vector<std::vector<int>> board_of_game(board_row, std::vector<int>(board_col, 10));
 
-        std::vector<Point> touch_blocks = {Point(touchCol, touchRow)};
+        std::vector<Point> touch_blocks = {Point(touch_col, touch_row)};
         if (!open_board(board, board_of_game, touch_blocks))
         {
             return false;
@@ -1458,41 +1538,18 @@ namespace MinesSolver
         // 校验地图
         check_board(board, board_of_game, total_mines);
 
-        if (SHOW_DEBUG > 999)
-        {
-            printf("board\n");
-            print_board(board);
-            printf("\n");
-
-            printf("board_of_game\n");
-            print_board(board_of_game);
-            printf("\n");
-
-            printf("total_mines: %s\n", SZ_Common::toString(total_mines).c_str());
-            printf("\n");
-        }
-
         while (!isVictory(board_of_game, total_mines))
         {
             std::vector<NumBlock> num_blocks; // 存在未知块的数字块
             filter_num_block(board_of_game, num_blocks);
 
-            std::vector<Point> mines_blocks; // 查早的雷
+            std::vector<Point> mines_blocks; // 查找的雷
             std::vector<Point> safe_blocks;  // 查找的安全块
-
-            bool is_direct = true;
-
-            if (SHOW_DEBUG > 999)
-            {
-                printf("num_blocks 0: %s\n", SZ_Common::toString(num_blocks).c_str());
-                printf("\n");
-            }
 
             // 单点分析
             solve_by_direct(board_of_game, num_blocks, mines_blocks, safe_blocks);
             if (safe_blocks.empty() && mines_blocks.empty())
             {
-                is_direct = false;
                 // 多点分析
                 solve_by_minus(board_of_game, num_blocks, mines_blocks, safe_blocks);
                 if (safe_blocks.empty() && mines_blocks.empty())
@@ -1502,33 +1559,16 @@ namespace MinesSolver
                 }
             }
 
-            if (SHOW_DEBUG > 999)
-            {
-                printf("mines_blocks: %s\n", SZ_Common::toString(mines_blocks).c_str());
-                printf("safe_blocks: %s\n", SZ_Common::toString(safe_blocks).c_str());
-                printf("\n");
-
-                printf("board_of_game after %s\n", is_direct ? "solve_by_direct" : "solve_by_minus");
-                print_board(board_of_game);
-                printf("\n");
-            }
-
             if (!open_board(board, board_of_game, safe_blocks))
             {
                 isSolve = false;
                 break;
             }
-
-            if (SHOW_DEBUG > 999)
-            {
-                printf("board_of_game after open_board\n");
-                print_board(board_of_game);
-                printf("\n");
-            }
         }
 
         return isSolve;
     }
+
 } // namespace MinesSolver
 
 int main()
