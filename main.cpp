@@ -17,7 +17,7 @@
 
 #include "SZCommon.h"
 
-#define SHOW_DEBUG 0
+#define SHOW_DEBUG 1000
 
 void print_board(const std::vector<std::vector<int>> &board)
 {
@@ -997,7 +997,7 @@ namespace MinesSolver
      * @param board
      * @param board_of_game
      * @param open_pos
-     * @return bool 是否踩雷
+     * @return bool true：开启正常 false：开启失败
      */
     bool open_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<Point> &open_pos)
     {
@@ -1029,11 +1029,11 @@ namespace MinesSolver
             }
             else
             {
-                return true;
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
     /**
@@ -1231,7 +1231,7 @@ namespace MinesSolver
 
                 int intersect_num = intersect_blocks.size(); // 相交的未知块
 
-                if (SHOW_DEBUG > 0)
+                if (SHOW_DEBUG > 999)
                 {
                     printf("block_a: %s\n", SZ_Common::toString(num_blocks[idx_a]).c_str());
                     printf("block_b: %s\n", SZ_Common::toString(num_blocks[idx_b]).c_str());
@@ -1405,21 +1405,33 @@ namespace MinesSolver
     }
 
     /**
-     * @brief 求解
+     * @brief 求解 游戏地图 0~8：雷的数量 10:未知 11:标记为雷 12:标记为安全块 -1:确定为雷
      *
-     * @param board 初始地图
-     * @param board_of_game 游戏地图 0~8：雷的数量 10:未知 11:标记为雷 12:标记为安全块 -1:确定为雷
-     * @return bool 是否求解成功
+     * @param board
+     * @param touchRow
+     * @param touchCol
+     * @return true
+     * @return false
      */
-    bool is_solve(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
+    bool is_solvable(const std::vector<std::vector<int>> &board, int touchRow, int touchCol)
     {
+        const int board_row = board.size();
+        const int board_col = board[0].size();
         bool isSolve = true;            // 是否解决
         std::vector<Point> total_mines; // 所有炸弹的位置
+
+        std::vector<std::vector<int>> board_of_game(board_row, std::vector<int>(board_col, 10));
+
+        std::vector<Point> touch_blocks = {Point(touchCol, touchRow)};
+        if (!open_board(board, board_of_game, touch_blocks))
+        {
+            return false;
+        }
 
         // 校验地图
         check_board(board, board_of_game, total_mines);
 
-        if (SHOW_DEBUG > 0)
+        if (SHOW_DEBUG > 999)
         {
             printf("board\n");
             print_board(board);
@@ -1443,7 +1455,7 @@ namespace MinesSolver
 
             bool is_direct = true;
 
-            if (SHOW_DEBUG > 0)
+            if (SHOW_DEBUG > 999)
             {
                 printf("num_blocks 0: %s\n", SZ_Common::toString(num_blocks).c_str());
                 printf("\n");
@@ -1463,7 +1475,7 @@ namespace MinesSolver
                 }
             }
 
-            if (SHOW_DEBUG > 0)
+            if (SHOW_DEBUG > 999)
             {
                 printf("mines_blocks: %s\n", SZ_Common::toString(mines_blocks).c_str());
                 printf("safe_blocks: %s\n", SZ_Common::toString(safe_blocks).c_str());
@@ -1474,13 +1486,13 @@ namespace MinesSolver
                 printf("\n");
             }
 
-            if (open_board(board, board_of_game, safe_blocks))
+            if (!open_board(board, board_of_game, safe_blocks))
             {
                 isSolve = false;
                 break;
             }
 
-            if (SHOW_DEBUG > 0)
+            if (SHOW_DEBUG > 999)
             {
                 printf("board_of_game after open_board\n");
                 print_board(board_of_game);
@@ -1500,37 +1512,11 @@ int main()
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
-    const int loop = 1000;
 
-    int success = 0;
-    int failure = 0;
-
-    int startMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    for (int i = 1; i <= loop; i++)
-    {
-        std::vector<std::vector<int>> board;
-        bool isSolved = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
-        if (isSolved)
-        {
-            success++;
-        }
-        else
-        {
-            failure++;
-        }
-
-        if (i % 100 == 0)
-        {
-            std::cout << "run = " << i << "; success = " << success << "; failure = " << failure << std::endl;
-        }
-
-        if (loop == 1)
-        {
-            print_board(board);
-        }
-    }
-    int endMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::cout << "success = " << success << "; failure = " << failure << "; time = " << (endMs - startMs) * 1.0 / 1000 << std::endl;
+    std::vector<std::vector<int>> board;
+    Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+    bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
+    std::cout << (is_solve ? "true" : "false") << std::endl;
 
     return 0;
 }
