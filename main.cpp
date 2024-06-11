@@ -41,14 +41,14 @@ namespace Mines
 {
     const int ENUM_LIMIT = 55;
 
-    double rand_value(int64_t &seed)
+    double rand_value(uint64_t &seed)
     {
-        seed = seed * 1103515245ll + 12345ll;
-        seed = seed % 0x7fffffff;
-        return (seed * 1.0) / (0x7fffffff * 1.0);
+        seed = seed * 1103515245ull + 12345ull;
+        seed = seed % 0x7fffffffull;
+        return (seed * 1.0) / (0x7fffffffull * 1.0);
     }
 
-    void shuffle_vector(std::vector<int> &v, int64_t seed)
+    void shuffle_vector(std::vector<int> &v, uint64_t seed)
     {
         for (int i = 0; i < static_cast<int>(v.size()); i++)
         {
@@ -879,7 +879,7 @@ namespace Mines
         int touchRow,
         int touchCol,
         int max_times,
-        int64_t seed)
+        uint64_t seed)
     {
         int times = 0;
         while (times < max_times)
