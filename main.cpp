@@ -958,13 +958,15 @@ namespace MinesSolver
 
         int type = 0; // 0: 随便结果； 1: 单点分析结果； 2: 多点分析结果
 
-        std::vector<MSPoint> res_mines_blocks; // 求解周围地雷块
-        std::vector<MSPoint> res_safe_blocks;  // 求解周围安全块
+        std::vector<MSPoint> res_mines_blocks;   // 求解周围地雷块
+        std::vector<MSPoint> res_safe_blocks;    // 求解周围安全块
+        std::vector<MSPoint> error_mines_blocks; // 标记错误的雷块
 
         virtual void clear()
         {
             res_mines_blocks.clear();
             res_safe_blocks.clear();
+            error_mines_blocks.clear();
         }
     };
 
@@ -1087,6 +1089,34 @@ namespace MinesSolver
                 if (board_of_game[r][c] == 11 && board[r][c] != -1)
                 {
                     board_of_game[r][c] = 10;
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief 校验地图
+     *
+     * @param board
+     * @param board_of_game
+     * @param total_mines
+     */
+    void check_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<MSPoint> &error_mines_blocks)
+    {
+        const int board_row = board.size();
+        const int board_col = board[0].size();
+
+        error_mines_blocks.clear();
+
+        for (int r = 0; r < board_row; r++)
+        {
+            for (int c = 0; c < board_col; c++)
+            {
+                // 如果地图标雷，但是标错了，需要还原成未知状态
+                if (board_of_game[r][c] == 11 && board[r][c] != -1)
+                {
+                    board_of_game[r][c] = 10;
+                    error_mines_blocks.push_back(MSPoint(c, r));
                 }
             }
         }
@@ -1795,7 +1825,8 @@ namespace MinesSolver
     std::shared_ptr<SolveResult> calc_solve_result(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
     {
         // 校验地图
-        check_board(board, board_of_game);
+        std::vector<MSPoint> error_mines_blocks;
+        check_board(board, board_of_game, error_mines_blocks);
 
         std::vector<NumBlock> num_blocks; // 存在未知块的数字块
         filter_num_block(board_of_game, num_blocks);
@@ -1859,6 +1890,16 @@ namespace MinesSolver
                 }
             }
         } while (false);
+
+        if (sp_solve != nullptr && sp_solve->res_mines_blocks.empty() && sp_solve->res_safe_blocks.empty())
+        {
+            sp_solve = nullptr;
+        }
+
+        if (sp_solve != nullptr && !error_mines_blocks.empty())
+        {
+            sp_solve->error_mines_blocks = error_mines_blocks;
+        }
 
         return sp_solve;
     }
