@@ -903,34 +903,34 @@ namespace Mines
 
 namespace MinesSolver
 {
-    struct Point
+    struct MSPoint
     {
         int col{0};
         int row{0};
 
-        Point() {}
-        Point(int _c, int _r) : col(_c), row(_r) {}
-        Point(const Point &p) : col(p.col), row(p.row) {}
-        Point &operator=(const Point &p)
+        MSPoint() {}
+        MSPoint(int _c, int _r) : col(_c), row(_r) {}
+        MSPoint(const MSPoint &p) : col(p.col), row(p.row) {}
+        MSPoint &operator=(const MSPoint &p)
         {
             col = p.col;
             row = p.row;
             return *this;
         }
 
-        friend bool operator==(const Point &a, const Point &b) { return a.col == b.col && a.row == b.row; }
-        friend bool operator!=(const Point &a, const Point &b) { return a.col != b.col || a.row != b.row; }
-        friend bool operator<(const Point &a, const Point &b) { return a.row < b.row || (a.row == b.row && a.col < b.col); }
-        friend bool operator>(const Point &a, const Point &b) { return a.row > b.row || (a.row == b.row && a.col > b.col); }
-        friend bool operator<=(const Point &a, const Point &b) { return !operator>(a, b); }
-        friend bool operator>=(const Point &a, const Point &b) { return !operator<(a, b); }
+        friend bool operator==(const MSPoint &a, const MSPoint &b) { return a.col == b.col && a.row == b.row; }
+        friend bool operator!=(const MSPoint &a, const MSPoint &b) { return a.col != b.col || a.row != b.row; }
+        friend bool operator<(const MSPoint &a, const MSPoint &b) { return a.row < b.row || (a.row == b.row && a.col < b.col); }
+        friend bool operator>(const MSPoint &a, const MSPoint &b) { return a.row > b.row || (a.row == b.row && a.col > b.col); }
+        friend bool operator<=(const MSPoint &a, const MSPoint &b) { return !operator>(a, b); }
+        friend bool operator>=(const MSPoint &a, const MSPoint &b) { return !operator<(a, b); }
 
-        Point operator+(const Point &coord) const { return Point(col + coord.col, row + coord.row); }
-        Point operator-(const Point &coord) const { return Point(col - coord.col, row - coord.row); }
-        Point operator*(const int &scale) const { return Point(col * scale, row * scale); }
-        Point operator/(const int &scale) const { return scale == 0 ? Point(0, 0) : Point(col / scale, row / scale); }
+        MSPoint operator+(const MSPoint &p) const { return MSPoint(col + p.col, row + p.row); }
+        MSPoint operator-(const MSPoint &p) const { return MSPoint(col - p.col, row - p.row); }
+        MSPoint operator*(const int &scale) const { return MSPoint(col * scale, row * scale); }
+        MSPoint operator/(const int &scale) const { return scale == 0 ? MSPoint(0, 0) : MSPoint(col / scale, row / scale); }
 
-        friend std::ostream &operator<<(std::ostream &os, const Point &p)
+        friend std::ostream &operator<<(std::ostream &os, const MSPoint &p)
         {
             os << "(" << p.col << ", " << p.row << ")";
             return os;
@@ -939,9 +939,9 @@ namespace MinesSolver
 
     struct NumBlock
     {
-        Point num_block;                   // 中心数字块
-        std::vector<Point> mines_blocks;   // 周围的雷块
-        std::vector<Point> unknown_blocks; // 周围的未知块
+        MSPoint num_block;                   // 中心数字块
+        std::vector<MSPoint> mines_blocks;   // 周围的雷块
+        std::vector<MSPoint> unknown_blocks; // 周围的未知块
 
         friend std::ostream &operator<<(std::ostream &os, const NumBlock &n)
         {
@@ -958,8 +958,8 @@ namespace MinesSolver
 
         int type = 0; // 0: 随便结果； 1: 单点分析结果； 2: 多点分析结果
 
-        std::vector<Point> res_mines_blocks; // 求解周围地雷块
-        std::vector<Point> res_safe_blocks;  // 求解周围安全块
+        std::vector<MSPoint> res_mines_blocks; // 求解周围地雷块
+        std::vector<MSPoint> res_safe_blocks;  // 求解周围安全块
 
         virtual void clear()
         {
@@ -984,10 +984,10 @@ namespace MinesSolver
         SolveDirect() { type = 1; }
         virtual ~SolveDirect() {}
 
-        Point num_block; // 中心数字块
+        MSPoint num_block; // 中心数字块
 
-        std::vector<Point> init_mines_blocks;   // 初始雷块
-        std::vector<Point> init_unknown_blocks; // 初始未知块
+        std::vector<MSPoint> init_mines_blocks;   // 初始雷块
+        std::vector<MSPoint> init_unknown_blocks; // 初始未知块
 
         virtual void clear()
         {
@@ -1016,16 +1016,16 @@ namespace MinesSolver
         SolveMinus() { type = 2; }
         virtual ~SolveMinus() {}
 
-        Point num_block_x; // X数字块
-        Point num_block_y; // Y数字块
+        MSPoint num_block_x; // X数字块
+        MSPoint num_block_y; // Y数字块
 
-        std::vector<Point> init_mines_blocks_x;   // X初始雷块
-        std::vector<Point> init_unknown_blocks_x; // X初始未知块
+        std::vector<MSPoint> init_mines_blocks_x;   // X初始雷块
+        std::vector<MSPoint> init_unknown_blocks_x; // X初始未知块
 
-        std::vector<Point> init_mines_blocks_y;   // Y初始雷块
-        std::vector<Point> init_unknown_blocks_y; // Y初始未知块
+        std::vector<MSPoint> init_mines_blocks_y;   // Y初始雷块
+        std::vector<MSPoint> init_unknown_blocks_y; // Y初始未知块
 
-        std::vector<Point> init_intersect_blocks; // 初始相交的未知块
+        std::vector<MSPoint> init_intersect_blocks; // 初始相交的未知块
 
         virtual void clear()
         {
@@ -1052,7 +1052,7 @@ namespace MinesSolver
      * @return true
      * @return false
      */
-    bool isVictory(const std::vector<std::vector<int>> &board_of_game, const std::vector<Point> &total_mines)
+    bool isVictory(const std::vector<std::vector<int>> &board_of_game, const std::vector<MSPoint> &total_mines)
     {
         bool isVictory = true;
         for (const auto &mine : total_mines)
@@ -1098,7 +1098,7 @@ namespace MinesSolver
      * @param board
      * @param total_mines
      */
-    void check_total_mines(const std::vector<std::vector<int>> &board, std::vector<Point> &total_mines)
+    void check_total_mines(const std::vector<std::vector<int>> &board, std::vector<MSPoint> &total_mines)
     {
         const int board_row = board.size();
         const int board_col = board[0].size();
@@ -1111,7 +1111,7 @@ namespace MinesSolver
             {
                 if (board[r][c] == -1)
                 {
-                    total_mines.push_back(Point(c, r));
+                    total_mines.push_back(MSPoint(c, r));
                 }
             }
         }
@@ -1125,7 +1125,7 @@ namespace MinesSolver
      * @param open_pos
      * @return bool true：开启正常 false：开启失败
      */
-    bool open_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<Point> &open_pos)
+    bool open_board(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game, std::vector<MSPoint> &open_pos)
     {
         const int board_row = board.size();
         const int board_col = board[0].size();
@@ -1148,7 +1148,7 @@ namespace MinesSolver
                     {
                         if ((top.row != r || top.col != c) && (board_of_game[r][c] == 10 || board_of_game[r][c] == 12))
                         {
-                            open_pos.push_back(Point(c, r));
+                            open_pos.push_back(MSPoint(c, r));
                         }
                     }
                 }
@@ -1178,7 +1178,7 @@ namespace MinesSolver
      * @param res_mines_blocks
      * @param res_safe_blocks
      */
-    void solve_by_direct(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    void solve_by_direct(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<MSPoint> &res_mines_blocks, std::vector<MSPoint> &res_safe_blocks)
     {
         res_mines_blocks.clear();
         res_safe_blocks.clear();
@@ -1264,7 +1264,7 @@ namespace MinesSolver
      * @param res_mines_blocks
      * @param res_safe_blocks
      */
-    void solve_by_minus(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<Point> &res_mines_blocks, std::vector<Point> &res_safe_blocks)
+    void solve_by_minus(std::vector<std::vector<int>> &board_of_game, std::vector<NumBlock> &num_blocks, std::vector<MSPoint> &res_mines_blocks, std::vector<MSPoint> &res_safe_blocks)
     {
         res_mines_blocks.clear();
         res_safe_blocks.clear();
@@ -1338,7 +1338,7 @@ namespace MinesSolver
                     continue;
                 }
 
-                std::vector<Point> intersect_blocks; // 相交部分
+                std::vector<MSPoint> intersect_blocks; // 相交部分
                 std::set_intersection(num_blocks[idx_a].unknown_blocks.begin(), num_blocks[idx_a].unknown_blocks.end(), num_blocks[idx_b].unknown_blocks.begin(), num_blocks[idx_b].unknown_blocks.end(), std::back_inserter(intersect_blocks));
 
                 // 不相交
@@ -1477,11 +1477,11 @@ namespace MinesSolver
                         {
                             if (board_of_game[n_r][n_c] == 10)
                             {
-                                block.unknown_blocks.push_back(Point(n_c, n_r));
+                                block.unknown_blocks.push_back(MSPoint(n_c, n_r));
                             }
                             else if (board_of_game[n_r][n_c] == 11)
                             {
-                                block.mines_blocks.push_back(Point(n_c, n_r));
+                                block.mines_blocks.push_back(MSPoint(n_c, n_r));
                             }
                         }
                     }
@@ -1516,12 +1516,12 @@ namespace MinesSolver
     {
         const int board_row = board.size();
         const int board_col = board[0].size();
-        bool isSolve = true;            // 是否解决
-        std::vector<Point> total_mines; // 所有炸弹的位置
+        bool isSolve = true;              // 是否解决
+        std::vector<MSPoint> total_mines; // 所有炸弹的位置
 
         std::vector<std::vector<int>> board_of_game(board_row, std::vector<int>(board_col, 10));
 
-        std::vector<Point> touch_blocks = {Point(touch_col, touch_row)};
+        std::vector<MSPoint> touch_blocks = {MSPoint(touch_col, touch_row)};
         if (!open_board(board, board_of_game, touch_blocks))
         {
             return false;
@@ -1538,8 +1538,8 @@ namespace MinesSolver
             std::vector<NumBlock> num_blocks; // 存在未知块的数字块
             filter_num_block(board_of_game, num_blocks);
 
-            std::vector<Point> mines_blocks; // 查找的雷
-            std::vector<Point> safe_blocks;  // 查找的安全块
+            std::vector<MSPoint> mines_blocks; // 查找的雷
+            std::vector<MSPoint> safe_blocks;  // 查找的安全块
 
             // 单点分析
             solve_by_direct(board_of_game, num_blocks, mines_blocks, safe_blocks);
@@ -1586,8 +1586,8 @@ namespace MinesSolver
             int mines_num = it->mines_blocks.size();
             int unknown_num = it->unknown_blocks.size();
 
-            std::vector<Point> res_mines_blocks;
-            std::vector<Point> res_safe_blocks;
+            std::vector<MSPoint> res_mines_blocks;
+            std::vector<MSPoint> res_safe_blocks;
 
             if (total_mines == mines_num)
             {
@@ -1664,7 +1664,7 @@ namespace MinesSolver
                     continue;
                 }
 
-                std::vector<Point> intersect_blocks; // 相交部分
+                std::vector<MSPoint> intersect_blocks; // 相交部分
                 std::set_intersection(num_blocks[idx_a].unknown_blocks.begin(), num_blocks[idx_a].unknown_blocks.end(), num_blocks[idx_b].unknown_blocks.begin(), num_blocks[idx_b].unknown_blocks.end(), std::back_inserter(intersect_blocks));
 
                 // 不相交
@@ -1715,8 +1715,8 @@ namespace MinesSolver
                     }
                 } while (false);
 
-                std::vector<Point> res_mines_blocks;
-                std::vector<Point> res_safe_blocks;
+                std::vector<MSPoint> res_mines_blocks;
+                std::vector<MSPoint> res_safe_blocks;
 
                 if (index_x >= 0 && index_y >= 0)
                 {
@@ -1829,8 +1829,8 @@ namespace MinesSolver
             }
 
             // 若上述出错，则此处保底分配
-            std::vector<Point> mines_blocks;
-            std::vector<Point> safe_blocks;
+            std::vector<MSPoint> mines_blocks;
+            std::vector<MSPoint> safe_blocks;
             for (const auto &num_block : num_blocks)
             {
                 for (auto &unknown_block : num_block.unknown_blocks)
