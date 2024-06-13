@@ -1824,6 +1824,9 @@ namespace MinesSolver
      */
     std::shared_ptr<SolveResult> calc_solve_result(const std::vector<std::vector<int>> &board, std::vector<std::vector<int>> &board_of_game)
     {
+        const int board_row = board.size();
+        const int board_col = board[0].size();
+
         // 校验地图
         std::vector<MSPoint> error_mines_blocks;
         check_board(board, board_of_game, error_mines_blocks);
@@ -1834,11 +1837,6 @@ namespace MinesSolver
         std::shared_ptr<SolveResult> sp_solve = nullptr; // 求解结果
         do
         {
-            if (num_blocks.empty())
-            {
-                break;
-            }
-
             // 单点分析
             SolveDirect st_solve_direct;
             solve_one_by_direct(board_of_game, num_blocks, st_solve_direct);
@@ -1859,36 +1857,98 @@ namespace MinesSolver
                 break;
             }
 
+            std::vector<MSPoint> res_mines_blocks;
+            std::vector<MSPoint> res_safe_blocks;
+
             // 若上述出错，则此处保底分配
-            std::vector<MSPoint> mines_blocks;
-            std::vector<MSPoint> safe_blocks;
-            for (const auto &num_block : num_blocks)
+            do
             {
-                for (auto &unknown_block : num_block.unknown_blocks)
+                // 随便寻找一个数字块进行分析
+                for (const auto &num_block : num_blocks)
                 {
-                    // 进行二次校验
-                    if (board_of_game[unknown_block.row][unknown_block.col] == 10)
+                    for (auto &unknown_block : num_block.unknown_blocks)
                     {
-                        if (board[unknown_block.row][unknown_block.col] == -1)
+                        // 进行二次校验
+                        if (board_of_game[unknown_block.row][unknown_block.col] == 10)
                         {
-                            mines_blocks.push_back(unknown_block);
+                            if (board[unknown_block.row][unknown_block.col] == -1)
+                            {
+                                res_mines_blocks.push_back(unknown_block);
+                            }
+                            else if (board[unknown_block.row][unknown_block.col] < 10)
+                            {
+                                res_safe_blocks.push_back(unknown_block);
+                            }
                         }
-                        else if (board[unknown_block.row][unknown_block.col] < 10)
-                        {
-                            safe_blocks.push_back(unknown_block);
-                        }
+                    }
+
+                    if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
+                    {
+                        break;
                     }
                 }
 
-                if (!mines_blocks.empty() || !safe_blocks.empty())
+                if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
                 {
-                    sp_solve = std::make_shared<SolveDirect>();
-                    sp_solve->type = 0;
-                    sp_solve->res_mines_blocks = mines_blocks;
-                    sp_solve->res_safe_blocks = safe_blocks;
                     break;
                 }
+
+                // 没有可分析的数字块，则寻找安全块
+                for (int row = 0; row < board_row; row++)
+                {
+                    for (int col = 0; col < board_col; col++)
+                    {
+                        if (board_of_game[row][col] == 10 && board[row][col] >= 0 && board[row][col] < 10)
+                        {
+                            res_safe_blocks.push_back(MSPoint(row, col));
+                            break;
+                        }
+                    }
+
+                    if (!res_safe_blocks.empty())
+                    {
+                        break;
+                    }
+                }
+
+                if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
+                {
+                    break;
+                }
+
+                // 没有安全块，则直接寻找雷
+                for (int row = 0; row < board_row; row++)
+                {
+                    for (int col = 0; col < board_col; col++)
+                    {
+                        if (board_of_game[row][col] == 10 && board[row][col] == -1)
+                        {
+                            res_mines_blocks.push_back(MSPoint(row, col));
+                            break;
+                        }
+                    }
+
+                    if (!res_mines_blocks.empty())
+                    {
+                        break;
+                    }
+                }
+
+                if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
+                {
+                    break;
+                }
+            } while (false);
+
+            if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
+            {
+                sp_solve = std::make_shared<SolveDirect>();
+                sp_solve->type = 0;
+                sp_solve->res_mines_blocks = res_mines_blocks;
+                sp_solve->res_safe_blocks = res_safe_blocks;
+                break;
             }
+
         } while (false);
 
         if (sp_solve != nullptr && sp_solve->res_mines_blocks.empty() && sp_solve->res_safe_blocks.empty())
