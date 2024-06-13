@@ -930,10 +930,11 @@ namespace MinesSolver
         MSPoint operator*(const int &scale) const { return MSPoint(col * scale, row * scale); }
         MSPoint operator/(const int &scale) const { return scale == 0 ? MSPoint(0, 0) : MSPoint(col / scale, row / scale); }
 
-        friend std::ostream &operator<<(std::ostream &os, const MSPoint &p)
+        std::string toString()
         {
-            os << "(" << p.col << ", " << p.row << ")";
-            return os;
+            std::stringstream ss;
+            ss << "(" << this->col << ", " << this->row << ")";
+            return ss.str();
         }
     };
 
@@ -943,10 +944,23 @@ namespace MinesSolver
         std::vector<MSPoint> mines_blocks;   // 周围的雷块
         std::vector<MSPoint> unknown_blocks; // 周围的未知块
 
-        friend std::ostream &operator<<(std::ostream &os, const NumBlock &n)
+        std::string toString()
         {
-            os << "{ " << n.num_block << "; " << SZ_Common::toString(n.mines_blocks) << "; " << SZ_Common::toString(n.unknown_blocks) << " }";
-            return os;
+            std::stringstream ss;
+            ss << "{ " << this->num_block.toString() << "; ";
+            ss << "{ ";
+            for (auto &block : this->mines_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->unknown_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " } }";
+            return ss.str();
         }
     };
 
@@ -967,6 +981,31 @@ namespace MinesSolver
             res_mines_blocks.clear();
             res_safe_blocks.clear();
             error_mines_blocks.clear();
+        }
+
+        virtual std::string toString()
+        {
+            std::stringstream ss;
+            ss << "{ " << this->type << "; ";
+            ss << "{ ";
+            for (auto &block : this->res_mines_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->res_safe_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->error_mines_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " } }";
+            return ss.str();
         }
     };
 
@@ -1000,6 +1039,26 @@ namespace MinesSolver
 
             init_mines_blocks.clear();
             init_unknown_blocks.clear();
+        }
+
+        virtual std::string toString()
+        {
+            std::stringstream ss;
+            ss << SolveResult::toString() << "----";
+            ss << "{ " << this->num_block.toString() << "; ";
+            ss << "{ ";
+            for (auto &block : this->init_mines_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->init_unknown_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " } } }";
+            return ss.str();
         }
     };
 
@@ -1043,6 +1102,44 @@ namespace MinesSolver
             init_mines_blocks_y.clear();
             init_unknown_blocks_y.clear();
             init_intersect_blocks.clear();
+        }
+
+        virtual std::string toString()
+        {
+            std::stringstream ss;
+            ss << SolveResult::toString() << "----";
+            ss << "{ " << this->num_block_x.toString() << "; " << this->num_block_y.toString() << "; ";
+            ss << "{ ";
+            for (auto &block : this->init_mines_blocks_x)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->init_unknown_blocks_x)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->init_mines_blocks_y)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->init_unknown_blocks_y)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " }; ";
+            ss << "{ ";
+            for (auto &block : this->init_intersect_blocks)
+            {
+                ss << block.toString() << ",";
+            }
+            ss << " } } }";
+            return ss.str();
         }
     };
 
