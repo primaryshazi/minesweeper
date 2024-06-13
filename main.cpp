@@ -1025,6 +1025,7 @@ namespace MinesSolver
         SolveDirect() { type = 1; }
         virtual ~SolveDirect() {}
 
+        int num = 0;
         MSPoint num_block; // 中心数字块
 
         std::vector<MSPoint> init_mines_blocks;   // 初始雷块
@@ -1033,6 +1034,8 @@ namespace MinesSolver
         virtual void clear()
         {
             SolveResult::clear();
+
+            num = 0;
 
             num_block.col = 0;
             num_block.row = 0;
@@ -1045,7 +1048,7 @@ namespace MinesSolver
         {
             std::stringstream ss;
             ss << SolveResult::toString() << "----";
-            ss << "{ " << this->num_block.toString() << "; ";
+            ss << "{ " << this->num << "; " << this->num_block.toString() << "; ";
             ss << "{ ";
             for (auto &block : this->init_mines_blocks)
             {
@@ -1077,6 +1080,9 @@ namespace MinesSolver
         SolveMinus() { type = 2; }
         virtual ~SolveMinus() {}
 
+        int num_x = 0;
+        int num_y = 0;
+
         MSPoint num_block_x; // X数字块
         MSPoint num_block_y; // Y数字块
 
@@ -1091,6 +1097,9 @@ namespace MinesSolver
         virtual void clear()
         {
             SolveResult::clear();
+
+            num_x = 0;
+            num_y = 0;
 
             num_block_x.col = 0;
             num_block_x.row = 0;
@@ -1108,7 +1117,7 @@ namespace MinesSolver
         {
             std::stringstream ss;
             ss << SolveResult::toString() << "----";
-            ss << "{ " << this->num_block_x.toString() << "; " << this->num_block_y.toString() << "; ";
+            ss << "{ " << num_x << "; " << this->num_block_x.toString() << "; ";
             ss << "{ ";
             for (auto &block : this->init_mines_blocks_x)
             {
@@ -1121,6 +1130,7 @@ namespace MinesSolver
                 ss << block.toString() << ",";
             }
             ss << " }; ";
+            ss << "{ " << num_y << "; " << this->num_block_y.toString() << "; ";
             ss << "{ ";
             for (auto &block : this->init_mines_blocks_y)
             {
@@ -1736,6 +1746,7 @@ namespace MinesSolver
             // 找到一个有雷的情况便直接退出
             if (!res_mines_blocks.empty())
             {
+                st_solve_direct.num = board_of_game[row][col];
                 st_solve_direct.num_block = it->num_block;
                 st_solve_direct.init_mines_blocks = it->mines_blocks;
                 st_solve_direct.init_unknown_blocks = it->unknown_blocks;
@@ -1747,6 +1758,7 @@ namespace MinesSolver
             // 找到一个有安全块的情况
             if (!res_safe_blocks.empty() && st_no_mines_solve_direct.res_mines_blocks.empty() && st_no_mines_solve_direct.res_safe_blocks.empty())
             {
+                st_no_mines_solve_direct.num = board_of_game[row][col];
                 st_no_mines_solve_direct.num_block = it->num_block;
                 st_no_mines_solve_direct.init_mines_blocks = it->mines_blocks;
                 st_no_mines_solve_direct.init_unknown_blocks = it->unknown_blocks;
@@ -1868,10 +1880,12 @@ namespace MinesSolver
 
                 if (!res_mines_blocks.empty())
                 {
+                    st_solve_minus.num_x = board_of_game[num_blocks[index_x].num_block.row][num_blocks[index_x].num_block.col];
                     st_solve_minus.num_block_x = num_blocks[index_x].num_block;
                     st_solve_minus.init_mines_blocks_x = num_blocks[index_x].mines_blocks;
                     st_solve_minus.init_unknown_blocks_x = num_blocks[index_x].unknown_blocks;
 
+                    st_solve_minus.num_y = board_of_game[num_blocks[index_y].num_block.row][num_blocks[index_y].num_block.col];
                     st_solve_minus.num_block_y = num_blocks[index_y].num_block;
                     st_solve_minus.init_mines_blocks_y = num_blocks[index_y].mines_blocks;
                     st_solve_minus.init_unknown_blocks_y = num_blocks[index_y].unknown_blocks;
@@ -1885,10 +1899,12 @@ namespace MinesSolver
 
                 if (!res_safe_blocks.empty() && st_no_mines_solve_minus.res_mines_blocks.empty() && st_no_mines_solve_minus.res_safe_blocks.empty())
                 {
+                    st_no_mines_solve_minus.num_x = board_of_game[num_blocks[index_x].num_block.row][num_blocks[index_x].num_block.col];
                     st_no_mines_solve_minus.num_block_x = num_blocks[index_x].num_block;
                     st_no_mines_solve_minus.init_mines_blocks_x = num_blocks[index_x].mines_blocks;
                     st_no_mines_solve_minus.init_unknown_blocks_x = num_blocks[index_x].unknown_blocks;
 
+                    st_no_mines_solve_minus.num_y = board_of_game[num_blocks[index_y].num_block.row][num_blocks[index_y].num_block.col];
                     st_no_mines_solve_minus.num_block_y = num_blocks[index_y].num_block;
                     st_no_mines_solve_minus.init_mines_blocks_y = num_blocks[index_y].mines_blocks;
                     st_no_mines_solve_minus.init_unknown_blocks_y = num_blocks[index_y].unknown_blocks;
