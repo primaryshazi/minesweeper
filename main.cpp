@@ -744,11 +744,7 @@ namespace Mines
         // 局面大小必须超过6*6
         refresh_board(board, board_of_game, {{touchRow, touchCol}});
 
-        if (isVictory(board_of_game, total_mines))
-        {
-            return true; // 暂且认为点一下就扫开也是可以的
-        }
-        while (true)
+        while (!isVictory(board_of_game, total_mines))
         {
             std::vector<std::vector<std::vector<int>>> As;
             std::vector<std::vector<std::pair<int, int>>> xs;
@@ -777,11 +773,9 @@ namespace Mines
             }
 
             refresh_board(board, board_of_game, not_mine);
-            if (isVictory(board_of_game, total_mines))
-            {
-                return true;
-            }
         }
+
+        return true;
     }
 
     void laymine_op(
@@ -2080,20 +2074,21 @@ namespace MinesSolver
 
 int main()
 {
-    int row = 10;
-    int column = 10;
-    int mine = 30;
+    int row = 30;
+    int column = 30;
+    int mine = 200;
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
-    int loop = 100;
+    int loop = 1000;
 
     int success = 0;
     int failure = 0;
     for (int i = 1; i <= loop; i++)
     {
         std::vector<std::vector<int>> board;
-        bool is_solve = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
+        bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
         if (is_solve)
         {
             success++;
@@ -2103,7 +2098,7 @@ int main()
             failure++;
         }
 
-        if (i % 5 == 0)
+        if (i % 100 == 0)
         {
             std::cout << "loop ing: " << i << " success: " << success << " failure: " << failure << std::endl;
         }
