@@ -891,7 +891,7 @@ namespace Mines
                 return true;
             }
 
-            if (seed > 0)
+            if (seed >= 0)
             {
                 rand_value(seed);
             }
@@ -2080,12 +2080,12 @@ namespace MinesSolver
 
 int main()
 {
-    int row = 32;
-    int column = 32;
-    int mine = 270;
+    int row = 10;
+    int column = 10;
+    int mine = 30;
     int touchRow = row / 2;
     int touchCol = column / 2;
-    int maxtimes = 10000;
+    int maxtimes = 1000;
     int loop = 100;
 
     int success = 0;
