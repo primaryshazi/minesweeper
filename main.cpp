@@ -41,14 +41,14 @@ namespace Mines
 {
     const int ENUM_LIMIT = 55;
 
-    double rand_value(uint64_t &seed)
+    double rand_value(int64_t &seed)
     {
-        seed = seed * 1103515245ull + 12345ull;
-        seed = seed % 0x7fffffffull;
-        return (seed * 1.0) / (0x7fffffffull * 1.0);
+        seed = seed * 1103515245ll + 12345ll;
+        seed = seed % 0x7fffffffll;
+        return (seed * 1.0) / (0x7fffffffll * 1.0);
     }
 
-    void shuffle_vector(std::vector<int> &v, uint64_t seed)
+    void shuffle_vector(std::vector<int> &v, int64_t seed)
     {
         for (int i = 0; i < static_cast<int>(v.size()); i++)
         {
@@ -879,7 +879,7 @@ namespace Mines
         int touchRow,
         int touchCol,
         int max_times,
-        uint64_t seed)
+        int64_t seed)
     {
         int times = 0;
         while (times < max_times)
@@ -2080,21 +2080,20 @@ namespace MinesSolver
 
 int main()
 {
-    int row = 30;
-    int column = 30;
-    int mine = 200;
+    int row = 32;
+    int column = 32;
+    int mine = 270;
     int touchRow = row / 2;
     int touchCol = column / 2;
-    int maxtimes = 1000;
-    int loop = 1000;
+    int maxtimes = 10000;
+    int loop = 100;
 
     int success = 0;
     int failure = 0;
     for (int i = 1; i <= loop; i++)
     {
         std::vector<std::vector<int>> board;
-        Mines::laymine_solvable_with_seed(board, row, column, mine, touchRow, touchCol, maxtimes, -1);
-        bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
+        bool is_solve = Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
         if (is_solve)
         {
             success++;
@@ -2104,7 +2103,7 @@ int main()
             failure++;
         }
 
-        if (i % 100 == 0)
+        if (i % 5 == 0)
         {
             std::cout << "loop ing: " << i << " success: " << success << " failure: " << failure << std::endl;
         }
