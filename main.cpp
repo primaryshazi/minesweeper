@@ -2055,7 +2055,7 @@ namespace MinesSolver
 
             if (!res_mines_blocks.empty() || !res_safe_blocks.empty())
             {
-                sp_solve = std::make_shared<SolveDirect>();
+                sp_solve = std::make_shared<SolveResult>();
                 sp_solve->type = 0;
                 sp_solve->res_mines_blocks = res_mines_blocks;
                 sp_solve->res_safe_blocks = res_safe_blocks;
