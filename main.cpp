@@ -865,7 +865,7 @@ namespace Mines
         return false;
     }
 
-    bool laymine_solvable_with_seed(
+    std::pair<bool, int> laymine_solvable_with_seed(
         std::vector<std::vector<int>> &board,
         int row,
         int column,
@@ -882,7 +882,7 @@ namespace Mines
             times++;
             if (is_solvable(board, touchRow, touchCol))
             {
-                return true;
+                return std::make_pair(true, times);
             }
 
             if (seed >= 0)
@@ -891,7 +891,7 @@ namespace Mines
             }
         }
         laymine_op(board, row, column, minenum, touchRow, touchCol, seed);
-        return false;
+        return std::make_pair(false, times);
     }
 } // namespace Mines
 
@@ -2080,31 +2080,35 @@ int main()
     int touchRow = row / 2;
     int touchCol = column / 2;
     int maxtimes = 1000;
-    int loop = 1000;
+    int loop = 100;
 
     int success = 0;
     int failure = 0;
+    int total_times = 0;
+
+    int64_t start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     for (int i = 1; i <= loop; i++)
     {
         std::vector<std::vector<int>> board;
-        Mines::laymine_solvable(board, row, column, mine, touchRow, touchCol, maxtimes);
-        bool is_solve = MinesSolver::is_solvable(board, touchRow, touchCol);
-        if (is_solve)
+        auto ret = Mines::laymine_solvable_with_seed(board, row, column, mine, touchRow, touchCol, maxtimes, -1);
+        if (ret.first)
         {
             success++;
+            total_times += ret.second;
         }
         else
         {
             failure++;
         }
 
-        if (i % 100 == 0)
+        if (i % 10 == 0)
         {
-            std::cout << "loop ing: " << i << " success: " << success << " failure: " << failure << std::endl;
+            std::cout << "loop ing: " << i << ", success: " << success << ", failure: " << failure << std::endl;
         }
     }
+    int64_t end_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
-    std::cout << "success: " << success << " failure: " << failure << std::endl;
+    std::cout << "success: " << success << ", failure: " << failure << ", avg_times: " << total_times / loop << ", avg_ms: " << (end_ms - start_ms) * 1.0 / loop << "" << std::endl;
 
     return 0;
 }
